@@ -12,7 +12,9 @@ class CharacterWidget(tk.Frame):
     """Widget personnage avec animations"""
     
     def __init__(self, parent, size: int = 80):
-        super().__init__(parent, bg=parent['bg'])
+        # Fix: Obtenir la couleur de fond du parent correctement
+        parent_bg = parent.cget('bg') if hasattr(parent, 'cget') else '#f0f0f0'
+        super().__init__(parent, bg=parent_bg)
         
         self.size = size
         self.current_mood = "neutral"

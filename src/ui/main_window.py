@@ -12,6 +12,9 @@ from ..core.ollama_client import OllamaClient
 from ..core.system_monitor import SystemMonitor
 from .character import CharacterWidget
 from .speech_bubble import SpeechBubble
+from ..core.user_learning import UserLearningEngine
+from .themes import THEMES
+
 
 
 class MainWindow:
@@ -33,6 +36,13 @@ class MainWindow:
         self._setup_window()
         self._create_widgets()
         self._initialize_components()
+
+        # Initialiser l'IA et le monitoring
+        self.learning_engine: Optional[UserLearningEngine] = None
+        self.previous_app = ""
+
+        # Thème
+        self.theme_manager = THEMES()
     
     def _setup_window(self):
         """Configuration de la fenêtre"""
@@ -288,3 +298,120 @@ class MainWindow:
         self.root.destroy()
         
         print("👋 Assistant fermé !")
+
+def _initialize_components(self):
+    """Initialise les composants (Ollama, monitoring, apprentissage)"""
+    # Client Ollama
+    self.ollama_client = OllamaClient()
+    
+    # Système d'apprentissage
+    self.learning_engine = UserLearningEngine()
+    
+    # Monitoring système
+    self.system_monitor = SystemMonitor(self._on_app_changed)
+    
+    # Mettre à jour le message initial avec le statut
+    self._update_initial_message()
+
+    # Modifier _on_app_changed
+    def _on_app_changed(self, app_name: str, context: str):
+        """Callback appelé quand l'application active change"""
+        if settings.debug_mode:
+            print(f"[DÉTECTION UI] {app_name} - {context}")
+        
+        # Enregistrer la transition pour l'apprentissage
+        if self.learning_engine and self.previous_app and self.previous_app != app_name:
+            self.learning_engine.record_app_transition(self.previous_app, app_name)
+        self.previous_app = app_name
+        
+        # Afficher l'info de base immédiatement
+        basic_message = f"📱 {app_name}\n🕒 {context}\n\n🤔 Analyse en cours..."
+        self.root.after(0, lambda: self.speech_bubble.update_text(basic_message))
+        
+        # Animer le personnage
+        if self.character_widget:
+            self.root.after(0, lambda: self.character_widget.set_mood("thinking"))
+        
+        # Générer suggestion IA et personnalisée en arrière-plan
+        def generate_ai_response():
+            suggestions = []
+            
+            # Suggestion personnalisée basée sur l'apprentissage
+            if self.learning_engine:
+                personal_suggestion = self.learning_engine.get_contextual_suggestion(app_name, context)
+                if personal_suggestion:
+                    suggestions.append(f"👤 {personal_suggestion}")
+            
+            # Suggestion IA classique
+            if self.ollama_client:
+                ai_suggestion = self.ollama_client.generate_suggestion(app_name, context)
+                suggestions.append(f"🤖 {ai_suggestion}")
+            
+            # Combiner les suggestions
+            if suggestions:
+                final_message = f"📱 {app_name}\n🕒 {context}\n\n" + "\n\n".join(suggestions)
+            else:
+                final_message = f"📱 {app_name}\n🕒 {context}\n\n🔌 IA non disponible"
+            
+            # Mettre à jour l'UI dans le thread principal
+            self.root.after(0, lambda: self._update_ai_response(final_message))
+
+        # Lancer l'IA dans un thread séparé
+        threading.Thread(target=generate_ai_response, daemon=True).start()
+
+
+    # Modifier _create_control_buttons
+    def _create_control_buttons(self, parent):
+        """Crée les boutons de contrôle"""
+        # Bouton thème
+        theme_btn = tk.Button(
+            parent, 
+            text="🎨", 
+            command=self._cycle_theme,
+            bg='#9C27B0', 
+            fg='white', 
+            font=('Arial', 8),
+            width=3, 
+            height=1
+        )
+        theme_btn.pack(side=tk.RIGHT, padx=2, pady=2)
+        
+        # Bouton paramètres
+        settings_btn = tk.Button(
+            parent, 
+            text="⚙️", 
+            command=self._show_settings,
+            bg='#4CAF50', 
+            fg='white', 
+            font=('Arial', 8),
+            width=3, 
+            height=1
+        )
+        settings_btn.pack(side=tk.RIGHT, padx=2, pady=2)
+        
+        # ... autres boutons existants ...
+
+    # Nouvelle méthode
+    def _cycle_theme(self):
+        """Change de thème (cycle entre light, dark, cyberpunk)"""
+        themes = ["light", "dark", "cyberpunk"]
+        current_index = themes.index(self.theme_manager.current_theme)
+        next_index = (current_index + 1) % len(themes)
+        next_theme = themes[next_index]
+        
+        if self.theme_manager.set_theme(next_theme):
+            self._apply_current_theme()
+            print(f"[THEME] Changé vers: {next_theme}")
+
+    def _apply_current_theme(self):
+        """Applique le thème actuel à tous les widgets"""
+        # Fenêtre principale
+        self.theme_manager.apply_theme_to_widget(self.root, "main_window")
+        
+        # Bulle de dialogue
+        if self.speech_bubble:
+            self.theme_manager.apply_theme_to_widget(self.speech_bubble, "speech_bubble")
+        
+        # Redessiner le personnage avec les nouvelles couleurs
+        if self.character_widget:
+            self.character_widget.draw_character()

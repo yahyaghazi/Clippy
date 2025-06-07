@@ -12,7 +12,9 @@ class SpeechBubble(tk.Frame):
     """Bulle de dialogue pour afficher les messages de l'assistant"""
     
     def __init__(self, parent):
-        super().__init__(parent, bg=parent['bg'])
+        # Fix: Obtenir la couleur de fond du parent correctement
+        parent_bg = parent.cget('bg') if hasattr(parent, 'cget') else '#f0f0f0'
+        super().__init__(parent, bg=parent_bg)
         
         self.current_text = ""
         self.is_typing = False
@@ -116,12 +118,41 @@ class SpeechBubble(tk.Frame):
             if i > 0:
                 self.text_widget.insert(tk.END, '\n')
             
-            # Détecter les émojis
+            # Détecter les émojis et appliquer les styles
             if line.startswith('📱'):
                 self.text_widget.insert(tk.END, line, "app_name")
             elif line.startswith('💡'):
                 self.text_widget.insert(tk.END, line, "ai_suggestion")
             elif line.startswith('🕒'):
                 self.text_widget.insert(tk.END, line, "system_info")
+            elif line.startswith('🤖') or line.startswith('👤'):
+                self.text_widget.insert(tk.END, line, "ai_suggestion")
             else:
                 self.text_widget.insert(tk.END, line)
+    
+    def _animate_text(self, text: str):
+        """Animation d'écriture (optionnel)"""
+        if self.is_typing:
+            return
+        
+        self.is_typing = True
+        self.current_text = ""
+        
+        # Activer l'édition
+        self.text_widget.config(state=tk.NORMAL)
+        self.text_widget.delete(1.0, tk.END)
+        
+        def add_char(index=0):
+            if index < len(text) and self.is_typing:
+                self.current_text += text[index]
+                self.text_widget.delete(1.0, tk.END)
+                self._insert_styled_text(self.current_text)
+                self.text_widget.see(tk.END)
+                
+                # Programmer le prochain caractère
+                self.after(self.typing_speed, lambda: add_char(index + 1))
+            else:
+                self.is_typing = False
+                self.text_widget.config(state=tk.DISABLED)
+        
+        add_char()
