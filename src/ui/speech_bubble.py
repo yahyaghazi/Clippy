@@ -116,4 +116,12 @@ class SpeechBubble(tk.Frame):
             if i > 0:
                 self.text_widget.insert(tk.END, '\n')
             
-            # Détecter et styler
+            # Détecter les émojis
+            if line.startswith('📱'):
+                self.text_widget.insert(tk.END, line, "app_name")
+            elif line.startswith('💡'):
+                self.text_widget.insert(tk.END, line, "ai_suggestion")
+            elif line.startswith('🕒'):
+                self.text_widget.insert(tk.END, line, "system_info")
+            else:
+                self.text_widget.insert(tk.END, line)
