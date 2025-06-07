@@ -1,40 +1,41 @@
-# Assistant IA Local - Dépendances Python
+# Assistant IA Système - Phase 1
+# Dépendances pour le contrôle système complet
 
-# === DÉPENDANCES OBLIGATOIRES ===
-
-# Surveillance système
+# === DÉPENDANCES EXISTANTES ===
 psutil>=5.9.0
-
-# Communication avec Ollama
 requests>=2.31.0
-
-# === DÉPENDANCES RECOMMANDÉES ===
-
-# Synthèse vocale (fortement recommandé)
 pyttsx3>=2.90
-
-# Windows uniquement (pour détection fenêtre active)
 pywin32>=306; sys_platform == "win32"
 
-# === DÉPENDANCES OPTIONNELLES (futures versions) ===
+# === NOUVEAUX MODULES SYSTÈME ===
 
-# Traitement d'images/OCR
-# Pillow>=10.0.0
-# pytesseract>=0.3.10
+# Vision et capture d'écran
+pyautogui>=0.9.54          # Capture écran + contrôle souris/clavier
+Pillow>=10.0.0             # Traitement d'images
+opencv-python>=4.8.0       # Vision par ordinateur
 
-# Surveillance clavier/souris avancée
-# pynput>=1.7.6
+# OCR (Reconnaissance de texte)
+pytesseract>=0.3.10        # Moteur OCR
+easyocr>=1.7.0             # OCR alternatif (plus précis)
 
-# Raccourcis clavier globaux
-# keyboard>=0.13.5
+# Contrôle avancé système
+pynput>=1.7.6              # Contrôle souris/clavier avancé
+keyboard>=0.13.5           # Raccourcis clavier globaux
 
-# Base de données locale
-# sqlite3  # Inclus avec Python
+# Traitement d'images et IA
+numpy>=1.24.0              # Calculs numériques
+scikit-image>=0.21.0       # Traitement d'images scientifique
 
-# Configuration avancée
-# python-dotenv>=1.0.0
+# Interface et utilitaires
+python-dotenv>=1.0.0       # Variables d'environnement
+colorama>=0.4.6            # Couleurs console
 
-# === NOTES ===
-# - tkinter est inclus avec Python par défaut
-# - Interface graphique: utilisera tkinter (inclus) ou PySide6 si disponible
-# - L'assistant fonctionne sans pyttsx3 mais sans synthèse vocale
+# === OPTIONNEL (POUR VERSIONS FUTURES) ===
+# torch>=2.0.0             # PyTorch pour IA avancée
+# transformers>=4.30.0     # Modèles de langage
+# ultralytics>=8.0.0       # Détection d'objets YOLO
+
+# === NOTES D'INSTALLATION ===
+# Windows: Installer Tesseract OCR séparément
+# https://github.com/tesseract-ocr/tesseract/releases
+# Ajouter Tesseract au PATH système

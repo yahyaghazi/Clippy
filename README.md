@@ -144,7 +144,7 @@ voice_engine.set_voice_properties(
 ## 🏗️ Architecture
 
 ```
-ai_assistant/
+AI_chat/
 ├── src/
 │   ├── config/          # Configuration
 │   ├── core/           # Logique métier
@@ -155,10 +155,30 @@ ai_assistant/
 │   │   ├── character.py
 │   │   └── speech_bubble.py
 │   └── utils/          # Utilitaires
-│       ├── voice_engine.py
-│       └── app_mapper.py
-├── main.py            # Point d'entrée
-└── requirements.txt   # Dépendances
+│   │   ├── voice_engine.py
+│   │   └── app_mapper.py
+│   │
+│   ├── vision/                 # 🆕 NOUVEAU - Vision système
+│   │   ├── __init__.py
+│   │   ├── screen_capture.py   # Capture d'écran
+│   │   ├── ocr_engine.py       # Reconnaissance texte
+│   │   └── visual_analyzer.py  # Analyse visuelle
+│   │
+│   ├── control/                # 🆕 NOUVEAU - Contrôle système
+│   │   ├── __init__.py
+│   │   ├── mouse_controller.py # Contrôle souris
+│   │   ├── keyboard_controller.py # Contrôle clavier
+│   │   └── system_commander.py # Commandes système
+│   │
+│   └── ai_system/              # 🆕 NOUVEAU - IA système
+│       ├── __init__.py
+│       ├── command_parser.py   # Parse commandes naturelles
+│       ├── action_executor.py  # Exécute les actions
+│       └── safety_manager.py   # Sécurité et validations
+│
+├── requirements_system.txt     # 🆕 Nouvelles dépendances
+├── test_system.py             # 🆕 Tests modules système
+└── main_system.py             # 🆕 Version système étendue
 ```
 
 ## 🔧 Développement
