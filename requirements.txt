@@ -1,6 +1,6 @@
 # Assistant IA Local - Dépendances Python
 
-# Interface graphique (tkinter inclus avec Python par défaut)
+# === DÉPENDANCES OBLIGATOIRES ===
 
 # Surveillance système
 psutil>=5.9.0
@@ -8,14 +8,33 @@ psutil>=5.9.0
 # Communication avec Ollama
 requests>=2.31.0
 
-# Synthèse vocale
+# === DÉPENDANCES RECOMMANDÉES ===
+
+# Synthèse vocale (fortement recommandé)
 pyttsx3>=2.90
 
 # Windows uniquement (pour détection fenêtre active)
 pywin32>=306; sys_platform == "win32"
 
-# Optionnel pour versions futures
-# pytesseract>=0.3.10  # OCR
-# Pillow>=10.0.0  # Traitement d'images
-# pynput>=1.7.6  # Surveillance clavier/souris avancée
-# keyboard>=0.13.5  # Raccourcis clavier globaux
+# === DÉPENDANCES OPTIONNELLES (futures versions) ===
+
+# Traitement d'images/OCR
+# Pillow>=10.0.0
+# pytesseract>=0.3.10
+
+# Surveillance clavier/souris avancée
+# pynput>=1.7.6
+
+# Raccourcis clavier globaux
+# keyboard>=0.13.5
+
+# Base de données locale
+# sqlite3  # Inclus avec Python
+
+# Configuration avancée
+# python-dotenv>=1.0.0
+
+# === NOTES ===
+# - tkinter est inclus avec Python par défaut
+# - Interface graphique: utilisera tkinter (inclus) ou PySide6 si disponible
+# - L'assistant fonctionne sans pyttsx3 mais sans synthèse vocale

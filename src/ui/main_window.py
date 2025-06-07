@@ -14,6 +14,7 @@ from .character import CharacterWidget
 from .speech_bubble import SpeechBubble
 from ..core.user_learning import UserLearningEngine
 from .themes import THEMES
+from ..utils.voice_engine import voice_engine
 
 
 class MainWindow:
@@ -25,6 +26,10 @@ class MainWindow:
         self.system_monitor: Optional[SystemMonitor] = None
         self.learning_engine: Optional[UserLearningEngine] = None
         self.previous_app = ""
+        
+        # Paramètres vocaux
+        self.voice_enabled = True
+        self.voice_button = None
         
         # Variables pour le déplacement
         self.start_x = 0
@@ -124,6 +129,19 @@ class MainWindow:
     
     def _create_control_buttons(self, parent):
         """Crée les boutons de contrôle"""
+        # Bouton voix
+        self.voice_button = tk.Button(
+            parent, 
+            text="🔊" if self.voice_enabled else "🔇", 
+            command=self._toggle_voice,
+            bg='#FF5722', 
+            fg='white', 
+            font=('Arial', 8),
+            width=3, 
+            height=1
+        )
+        self.voice_button.pack(side=tk.RIGHT, padx=2, pady=2)
+        
         # Bouton thème
         theme_btn = tk.Button(
             parent, 
@@ -176,13 +194,63 @@ class MainWindow:
         )
         minimize_btn.pack(side=tk.RIGHT, padx=2, pady=2)
     
+    def _toggle_voice(self):
+        """Active/désactive la synthèse vocale"""
+        self.voice_enabled = not self.voice_enabled
+        
+        # Mettre à jour l'icône du bouton
+        new_icon = "🔊" if self.voice_enabled else "🔇"
+        if self.voice_button:
+            self.voice_button.config(text=new_icon)
+        
+        # Feedback vocal
+        if self.voice_enabled and voice_engine.available:
+            voice_engine.speak("Synthèse vocale activée !", priority=True)
+            if self.character_widget:
+                self.character_widget.set_mood("happy")
+        else:
+            print("[VOICE] Synthèse vocale désactivée")
+            if self.character_widget:
+                self.character_widget.set_mood("neutral")
+    
+    def _speak_message(self, message: str):
+        """Fait parler l'assistant avec le message donné"""
+        if self.voice_enabled and voice_engine.available:
+            # Extraire seulement le contenu des suggestions (pas les émojis de statut)
+            lines = message.split('\n')
+            speech_lines = []
+            
+            for line in lines:
+                # Inclure les suggestions IA et personnalisées
+                if line.startswith('🤖') or line.startswith('👤'):
+                    # Retirer l'émoji au début
+                    clean_line = line[2:].strip()
+                    if clean_line:
+                        speech_lines.append(clean_line)
+            
+            if speech_lines:
+                speech_text = ". ".join(speech_lines)
+                voice_engine.speak(speech_text)
+    
     def _initialize_components(self):
-        """Initialise les composants (Ollama, monitoring, apprentissage)"""
+        """Initialise les composants (Ollama, monitoring, apprentissage, voix)"""
         # Client Ollama
         self.ollama_client = OllamaClient()
         
         # Système d'apprentissage
         self.learning_engine = UserLearningEngine()
+        
+        # Test synthèse vocale
+        if voice_engine.available:
+            print("✅ Synthèse vocale disponible")
+            # Message de bienvenue vocal
+            if self.voice_enabled:
+                voice_engine.speak("Bonjour ! Assistant IA prêt.", priority=True)
+        else:
+            print("❌ Synthèse vocale non disponible")
+            self.voice_enabled = False
+            if self.voice_button:
+                self.voice_button.config(text="🔇", state="disabled")
         
         # Monitoring système
         self.system_monitor = SystemMonitor(self._on_app_changed)
@@ -209,10 +277,25 @@ class MainWindow:
         else:
             status_lines.append("⚠️ Démarre Ollama pour l'IA")
         
+        # Statut synthèse vocale
+        if voice_engine.available:
+            voice_status = "activée" if self.voice_enabled else "disponible"
+            status_lines.append(f"🔊 Voix {voice_status}")
+        else:
+            status_lines.append("🔇 Voix non disponible")
+        
         # Statut monitoring
         status_lines.append("🔍 Surveillance active")
         
-        self.speech_bubble.update_text("\n".join(status_lines))
+        final_message = "\n".join(status_lines)
+        self.speech_bubble.update_text(final_message)
+        
+        # Annoncer le statut vocal si activé
+        if self.voice_enabled and voice_engine.available:
+            if self.ollama_client and self.ollama_client.available:
+                voice_engine.speak("Intelligence artificielle connectée. Je suis prêt à vous aider.")
+            else:
+                voice_engine.speak("Surveillance active. Démarrez Ollama pour l'intelligence artificielle.")
     
     def _on_app_changed(self, app_name: str, context: str):
         """Callback appelé quand l'application active change"""
@@ -270,6 +353,9 @@ class MainWindow:
         # Animer le personnage
         if self.character_widget:
             self.character_widget.set_mood("happy")
+        
+        # Synthèse vocale des suggestions
+        self._speak_message(message)
     
     def _cycle_theme(self):
         """Change de thème (cycle entre light, dark, cyberpunk)"""
@@ -282,6 +368,10 @@ class MainWindow:
         self.theme_data = THEMES[next_theme]
         self._apply_current_theme()
         print(f"[THEME] Changé vers: {next_theme}")
+        
+        # Annonce vocale du changement de thème
+        if self.voice_enabled and voice_engine.available:
+            voice_engine.speak(f"Thème {next_theme} activé")
     
     def _apply_current_theme(self):
         """Applique le thème actuel à tous les widgets"""
@@ -295,11 +385,14 @@ class MainWindow:
                 if isinstance(child, tk.Frame):
                     child.configure(bg=self.theme_data["bubble_bg"])
                     for subchild in child.winfo_children():
-                        if hasattr(subchild, 'text_widget'):
-                            subchild.text_widget.configure(
-                                bg=self.theme_data["bubble_bg"],
-                                fg=self.theme_data["text_color"]
-                            )
+                        if hasattr(subchild, 'config'):
+                            try:
+                                subchild.configure(
+                                    bg=self.theme_data["bubble_bg"],
+                                    fg=self.theme_data["text_color"]
+                                )
+                            except:
+                                pass  # Ignorer les widgets qui ne supportent pas ces propriétés
         
         # Redessiner le personnage avec les nouvelles couleurs
         if self.character_widget:
@@ -320,14 +413,33 @@ class MainWindow:
     
     def _show_settings(self):
         """Affiche la fenêtre de paramètres"""
+        # Statuts détaillés
+        ollama_status = "✅ Connecté" if self.ollama_client.available else "❌ Déconnecté"
+        voice_engine_status = "✅ Disponible" if voice_engine.available else "❌ Non disponible"
+        voice_status = "✅ Activée" if self.voice_enabled else "❌ Désactivée"
+        
+        # Informations sur les voix disponibles
+        voices_info = ""
+        if voice_engine.available:
+            voices = voice_engine.get_available_voices()
+            voices_count = len(voices)
+            voices_info = f"\nVoix disponibles: {voices_count}"
+        
         messagebox.showinfo(
             "Paramètres", 
-            f"Assistant IA v0.1\n\n"
-            f"Modèle: {settings.ollama.model}\n"
-            f"Statut IA: {'✅ Connecté' if self.ollama_client.available else '❌ Déconnecté'}\n"
-            f"Intervalle: {settings.monitoring.check_interval}s\n"
-            f"Thème: {self.current_theme}"
+            f"Assistant IA v1.1\n\n"
+            f"🤖 Modèle IA: {settings.ollama.model}\n"
+            f"🧠 Statut IA: {ollama_status}\n"
+            f"🔊 Moteur vocal: {voice_engine_status}\n"
+            f"🗣️ Synthèse: {voice_status}{voices_info}\n"
+            f"🎨 Thème: {self.current_theme}\n"
+            f"⏱️ Intervalle: {settings.monitoring.check_interval}s\n"
+            f"🎭 Apprentissage: ✅ Actif"
         )
+        
+        # Annonce vocale des paramètres
+        if self.voice_enabled and voice_engine.available:
+            voice_engine.speak("Paramètres affichés")
     
     def start_monitoring(self):
         """Démarre la surveillance système"""
@@ -344,6 +456,7 @@ class MainWindow:
         print("🤖 Assistant IA démarré !")
         print(f"- Fenêtre flottante: {settings.ui.window_width}x{settings.ui.window_height}")
         print(f"- IA: {'✅' if self.ollama_client.available else '❌'}")
+        print(f"- Voix: {'✅' if voice_engine.available else '❌'}")
         print("- Glissez la barre de titre pour déplacer")
         
         # Démarrer la surveillance
@@ -358,8 +471,16 @@ class MainWindow:
         """Fermeture propre de l'application"""
         print("🔄 Fermeture de l'assistant...")
         
+        # Message d'au revoir vocal
+        if self.voice_enabled and voice_engine.available:
+            voice_engine.speak("Au revoir !", priority=True)
+        
         # Arrêter la surveillance
         self.stop_monitoring()
+        
+        # Arrêter proprement la synthèse vocale
+        if voice_engine.available:
+            voice_engine.shutdown()
         
         # Fermer la fenêtre
         self.root.quit()

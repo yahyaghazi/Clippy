@@ -2,11 +2,19 @@
 Moteur de synthèse vocale pour l'Assistant IA
 """
 
-import pyttsx3
 import threading
 import queue
 import time
 from typing import Optional
+
+# Import conditionnel pour éviter les erreurs si pyttsx3 n'est pas installé
+try:
+    import pyttsx3
+    PYTTSX3_AVAILABLE = True
+except ImportError:
+    PYTTSX3_AVAILABLE = False
+    print("⚠️ pyttsx3 non installé - synthèse vocale désactivée")
+
 from ..config.settings import settings
 
 
@@ -14,11 +22,12 @@ class VoiceEngine:
     """Gestionnaire de synthèse vocale"""
     
     def __init__(self):
-        self.engine: Optional[pyttsx3.Engine] = None
+        self.engine: Optional = None
         self.available = False
         self.speaking = False
         self.voice_queue = queue.Queue()
         self.worker_thread = None
+        self._shutdown_requested = False
         
         # Configuration par défaut
         self.voice_config = {
@@ -27,8 +36,11 @@ class VoiceEngine:
             'voice_id': None    # ID de la voix (None = par défaut)
         }
         
-        self._initialize_engine()
-        self._start_worker()
+        if PYTTSX3_AVAILABLE:
+            self._initialize_engine()
+            self._start_worker()
+        else:
+            print("[VOICE] pyttsx3 non disponible")
     
     def _initialize_engine(self):
         """Initialise le moteur de synthèse vocale"""
@@ -41,17 +53,23 @@ class VoiceEngine:
             
             # Lister les voix disponibles
             voices = self.engine.getProperty('voices')
-            print(f"[VOICE] {len(voices)} voix disponibles:")
-            
-            for i, voice in enumerate(voices):
-                print(f"  {i}: {voice.name} ({voice.languages})")
+            if voices:
+                print(f"[VOICE] {len(voices)} voix disponibles:")
                 
-                # Sélectionner une voix française si disponible
-                if 'french' in voice.name.lower() or 'fr' in str(voice.languages).lower():
-                    self.voice_config['voice_id'] = voice.id
-                    self.engine.setProperty('voice', voice.id)
-                    print(f"  ✅ Voix française sélectionnée: {voice.name}")
-                    break
+                for i, voice in enumerate(voices[:3]):  # Limiter l'affichage
+                    name = getattr(voice, 'name', f'Voix {i}')
+                    lang = getattr(voice, 'languages', 'Inconnue')
+                    print(f"  {i}: {name} ({lang})")
+                    
+                    # Sélectionner une voix française si disponible
+                    name_lower = str(name).lower()
+                    lang_str = str(lang).lower()
+                    if ('french' in name_lower or 'fr' in lang_str or 
+                        'france' in name_lower or 'français' in name_lower):
+                        self.voice_config['voice_id'] = voice.id
+                        self.engine.setProperty('voice', voice.id)
+                        print(f"  ✅ Voix française sélectionnée: {name}")
+                        break
             
             self.available = True
             print("✅ Moteur vocal initialisé")
@@ -62,26 +80,27 @@ class VoiceEngine:
     
     def _start_worker(self):
         """Démarre le thread worker pour la synthèse vocale"""
-        if self.available:
+        if self.available and not self._shutdown_requested:
             self.worker_thread = threading.Thread(target=self._voice_worker, daemon=True)
             self.worker_thread.start()
     
     def _voice_worker(self):
         """Worker thread pour gérer la queue de synthèse vocale"""
-        while self.available:
+        while self.available and not self._shutdown_requested:
             try:
                 # Attendre un message dans la queue
                 message = self.voice_queue.get(timeout=1)
                 
-                if message == "STOP":
+                if message == "STOP" or self._shutdown_requested:
                     break
                 
                 # Synthèse vocale
                 self.speaking = True
                 print(f"[VOICE] Synthèse: {message[:50]}...")
                 
-                self.engine.say(message)
-                self.engine.runAndWait()
+                if self.engine:
+                    self.engine.say(message)
+                    self.engine.runAndWait()
                 
                 self.speaking = False
                 self.voice_queue.task_done()
@@ -91,6 +110,8 @@ class VoiceEngine:
             except Exception as e:
                 print(f"[ERROR VOICE] Erreur synthèse: {e}")
                 self.speaking = False
+        
+        print("[VOICE] Worker thread arrêté")
     
     def speak(self, text: str, priority: bool = False):
         """
@@ -100,8 +121,7 @@ class VoiceEngine:
             text: Texte à synthétiser
             priority: Si True, vide la queue et parle immédiatement
         """
-        if not self.available:
-            print("[VOICE] Moteur vocal non disponible")
+        if not self.available or self._shutdown_requested:
             return
         
         # Nettoyer le texte (enlever émojis et markdown)
@@ -116,8 +136,11 @@ class VoiceEngine:
             time.sleep(0.1)
         
         # Ajouter à la queue
-        self.voice_queue.put(clean_text)
-        print(f"[VOICE] Ajouté à la queue: {clean_text[:50]}...")
+        try:
+            self.voice_queue.put(clean_text, timeout=1)
+            print(f"[VOICE] Ajouté à la queue: {clean_text[:50]}...")
+        except queue.Full:
+            print("[VOICE] Queue pleine, message ignoré")
     
     def _clean_text(self, text: str) -> str:
         """Nettoie le texte pour la synthèse vocale"""
@@ -140,6 +163,8 @@ class VoiceEngine:
         text = re.sub(r'^🕒.*?\n', '', text, flags=re.MULTILINE)
         text = re.sub(r'^💡\s*', '', text, flags=re.MULTILINE)
         text = re.sub(r'^🤔.*?\n', '', text, flags=re.MULTILINE)
+        text = re.sub(r'^🤖\s*', '', text, flags=re.MULTILINE)
+        text = re.sub(r'^👤\s*', '', text, flags=re.MULTILINE)
         
         # Nettoyer les caractères spéciaux
         text = text.replace('\n', ' ')
@@ -151,12 +176,14 @@ class VoiceEngine:
         """Arrête la synthèse vocale en cours"""
         if self.available and self.engine:
             try:
-                self.engine.stop()
+                if hasattr(self.engine, 'stop'):
+                    self.engine.stop()
                 
                 # Vider la queue
                 while not self.voice_queue.empty():
                     try:
                         self.voice_queue.get_nowait()
+                        self.voice_queue.task_done()
                     except queue.Empty:
                         break
                 
@@ -172,14 +199,14 @@ class VoiceEngine:
     
     def set_voice_properties(self, rate: int = None, volume: float = None, voice_id: str = None):
         """Configure les propriétés de la voix"""
-        if not self.available:
+        if not self.available or not self.engine:
             return
         
         try:
             if rate is not None:
-                self.voice_config['rate'] = rate
-                self.engine.setProperty('rate', rate)
-                print(f"[VOICE] Vitesse: {rate} mots/min")
+                self.voice_config['rate'] = max(50, min(300, rate))  # Limiter la plage
+                self.engine.setProperty('rate', self.voice_config['rate'])
+                print(f"[VOICE] Vitesse: {self.voice_config['rate']} mots/min")
             
             if volume is not None:
                 self.voice_config['volume'] = max(0.0, min(1.0, volume))
@@ -196,31 +223,80 @@ class VoiceEngine:
     
     def get_available_voices(self) -> list:
         """Retourne la liste des voix disponibles"""
-        if not self.available:
+        if not self.available or not self.engine:
             return []
         
         try:
             voices = self.engine.getProperty('voices')
-            return [{'id': voice.id, 'name': voice.name, 'languages': voice.languages} 
-                   for voice in voices]
-        except:
+            if not voices:
+                return []
+            
+            voice_list = []
+            for voice in voices:
+                voice_info = {
+                    'id': getattr(voice, 'id', ''),
+                    'name': getattr(voice, 'name', 'Voix inconnue'),
+                    'languages': getattr(voice, 'languages', [])
+                }
+                voice_list.append(voice_info)
+            
+            return voice_list
+            
+        except Exception as e:
+            print(f"[ERROR VOICE] Erreur récupération voix: {e}")
             return []
     
     def test_voice(self, text: str = "Bonjour, je suis votre assistant IA !"):
         """Teste la synthèse vocale"""
-        self.speak(text, priority=True)
+        if self.available:
+            self.speak(text, priority=True)
+        else:
+            print("[VOICE] Test impossible - moteur non disponible")
+    
+    def get_voice_info(self) -> dict:
+        """Retourne les informations sur la configuration vocale"""
+        return {
+            'available': self.available,
+            'speaking': self.speaking,
+            'rate': self.voice_config['rate'],
+            'volume': self.voice_config['volume'],
+            'voice_id': self.voice_config['voice_id'],
+            'queue_size': self.voice_queue.qsize(),
+            'pyttsx3_available': PYTTSX3_AVAILABLE
+        }
     
     def shutdown(self):
         """Arrête proprement le moteur vocal"""
-        if self.available:
-            self.voice_queue.put("STOP")
-            self.stop()
-            self.available = False
-            
-            if self.worker_thread and self.worker_thread.is_alive():
-                self.worker_thread.join(timeout=2)
-            
-            print("[VOICE] Moteur vocal arrêté")
+        if not self.available:
+            return
+        
+        print("[VOICE] Arrêt du moteur vocal...")
+        self._shutdown_requested = True
+        
+        # Arrêter la synthèse en cours
+        self.stop()
+        
+        # Signaler l'arrêt au worker
+        try:
+            self.voice_queue.put("STOP", timeout=1)
+        except queue.Full:
+            pass
+        
+        # Attendre l'arrêt du worker thread
+        if self.worker_thread and self.worker_thread.is_alive():
+            self.worker_thread.join(timeout=3)
+        
+        # Nettoyer l'engine
+        if self.engine:
+            try:
+                if hasattr(self.engine, 'stop'):
+                    self.engine.stop()
+            except:
+                pass
+            self.engine = None
+        
+        self.available = False
+        print("[VOICE] Moteur vocal arrêté")
 
 
 # Instance globale
