@@ -1,3 +1,4 @@
+import os
 """
 Moteur OCR pour reconnaissance de texte à l'écran
 """

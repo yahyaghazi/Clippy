@@ -15,7 +15,7 @@ def test_screen_capture():
     """Test du module capture d'écran"""
     print("🔍 Test module capture d'écran...")
     try:
-        from src.vision.screen_capture import screen_capture
+        from vision.screen_capture import screen_capture
         
         # Test capture complète
         print("  - Capture écran complet...")
@@ -54,7 +54,7 @@ def test_ocr_engine():
     """Test du moteur OCR"""
     print("🔍 Test moteur OCR...")
     try:
-        from src.vision.ocr_engine import ocr_engine
+        from vision.ocr_engine import ocr_engine
         from PIL import Image, ImageDraw, ImageFont
         
         # Informations moteur
@@ -96,7 +96,7 @@ def test_mouse_controller():
     """Test du contrôleur souris"""
     print("🔍 Test contrôleur souris...")
     try:
-        from src.control.mouse_controller import mouse_controller
+        from control.mouse_controller import mouse_controller
         
         # Position actuelle
         pos = mouse_controller.get_position()
@@ -138,7 +138,7 @@ def test_keyboard_controller():
     """Test du contrôleur clavier"""
     print("🔍 Test contrôleur clavier...")
     try:
-        from src.control.keyboard_controller import keyboard_controller
+        from control.keyboard_controller import keyboard_controller
         
         print("  ⚠️ Test clavier nécessite focus sur zone de texte")
         print("  - Tests non interactifs seulement...")
@@ -164,7 +164,7 @@ def test_command_parser():
     """Test du parseur de commandes"""
     print("🔍 Test parseur de commandes...")
     try:
-        from src.ai_system.command_parser import command_parser
+        from ai_system.command_parser import command_parser
         
         # Tests de parsing
         test_commands = [
@@ -214,8 +214,8 @@ def test_integration():
     print("🔍 Test d'intégration...")
     try:
         # Test chaîne complète: commande -> parsing -> exécution simulée
-        from src.ai_system.command_parser import command_parser
-        from src.vision.screen_capture import screen_capture
+        from ai_system.command_parser import command_parser
+        from vision.screen_capture import screen_capture
         
         command = "Prends une capture d'écran"
         print(f"  - Commande: '{command}'")
@@ -250,7 +250,7 @@ def test_dependencies():
     """Test des dépendances système"""
     print("🔍 Test dépendances...")
     
-    required = ['pyautogui', 'Pillow']
+    required = ['pyautogui', 'PIL']
     optional = ['pytesseract', 'easyocr', 'opencv-python', 'numpy']
     
     results = {'required': [], 'optional': []}
