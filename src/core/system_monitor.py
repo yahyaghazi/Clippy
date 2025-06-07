@@ -224,12 +224,12 @@ class SystemMonitor:
         print("📊 Statistiques remises à zéro")
     
     def cleanup_old_processes(self):
-        """Nettoie l'historique des processus morts"""
-        current_pids = set(proc.info['pid'] for proc in psutil.process_iter(['pid']))
-        old_pids = set(self.process_history.keys()) - current_pids
-        
-        for pid in old_pids:
-            del self.process_history[pid]
-        
-        if old_pids and settings.debug_mode:
-            print
+            """Nettoie l'historique des processus morts"""
+            current_pids = set(proc.info['pid'] for proc in psutil.process_iter(['pid']))
+            old_pids = set(self.process_history.keys()) - current_pids
+            
+            for pid in old_pids:
+                del self.process_history[pid]
+            
+            if old_pids and settings.debug_mode:
+                print(f"[CLEANUP] {len(old_pids)} processus morts nettoyés")

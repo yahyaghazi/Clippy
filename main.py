@@ -52,6 +52,13 @@ def main():
     logger.info("Assistant IA démarré")
     
     try:
+        print("🔍 Test imports...")
+        from src.ui.main_window import MainWindow
+        print("✅ MainWindow importé")
+        
+        app = MainWindow()
+        print("✅ MainWindow créé")
+
         # Créer et lancer la fenêtre principale
         app = MainWindow()
         app.run()
@@ -71,20 +78,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # Au début de main()
-    try:
-        print("🔍 Test imports...")
-        from src.ui.main_window import MainWindow
-        print("✅ MainWindow importé")
-        
-        app = MainWindow()
-        print("✅ MainWindow créé")
-        
-        app.run()
-        
-    except Exception as e:
-        import traceback
-        print(f"❌ Erreur détaillée: {e}")
-        print("Traceback complet:")
-        traceback.print_exc()
     main()

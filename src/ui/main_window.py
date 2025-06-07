@@ -16,7 +16,6 @@ from ..core.user_learning import UserLearningEngine
 from .themes import THEMES
 
 
-
 class MainWindow:
     """Fenêtre principale de l'assistant"""
     
@@ -24,6 +23,8 @@ class MainWindow:
         self.root = tk.Tk()
         self.ollama_client: Optional[OllamaClient] = None
         self.system_monitor: Optional[SystemMonitor] = None
+        self.learning_engine: Optional[UserLearningEngine] = None
+        self.previous_app = ""
         
         # Variables pour le déplacement
         self.start_x = 0
@@ -33,16 +34,13 @@ class MainWindow:
         self.character_widget: Optional[CharacterWidget] = None
         self.speech_bubble: Optional[SpeechBubble] = None
         
+        # Thème (THEMES est un dict, pas une classe)
+        self.current_theme = "light"
+        self.theme_data = THEMES[self.current_theme]
+        
         self._setup_window()
         self._create_widgets()
         self._initialize_components()
-
-        # Initialiser l'IA et le monitoring
-        self.learning_engine: Optional[UserLearningEngine] = None
-        self.previous_app = ""
-
-        # Thème
-        self.theme_manager = THEMES()
     
     def _setup_window(self):
         """Configuration de la fenêtre"""
@@ -125,7 +123,20 @@ class MainWindow:
         title_label.bind("<B1-Motion>", self._on_drag)
     
     def _create_control_buttons(self, parent):
-        """Crée les boutons de contrôle (minimiser, fermer)"""
+        """Crée les boutons de contrôle"""
+        # Bouton thème
+        theme_btn = tk.Button(
+            parent, 
+            text="🎨", 
+            command=self._cycle_theme,
+            bg='#9C27B0', 
+            fg='white', 
+            font=('Arial', 8),
+            width=3, 
+            height=1
+        )
+        theme_btn.pack(side=tk.RIGHT, padx=2, pady=2)
+        
         # Bouton paramètres
         settings_btn = tk.Button(
             parent, 
@@ -166,9 +177,12 @@ class MainWindow:
         minimize_btn.pack(side=tk.RIGHT, padx=2, pady=2)
     
     def _initialize_components(self):
-        """Initialise les composants (Ollama, monitoring)"""
+        """Initialise les composants (Ollama, monitoring, apprentissage)"""
         # Client Ollama
         self.ollama_client = OllamaClient()
+        
+        # Système d'apprentissage
+        self.learning_engine = UserLearningEngine()
         
         # Monitoring système
         self.system_monitor = SystemMonitor(self._on_app_changed)
@@ -205,6 +219,11 @@ class MainWindow:
         if settings.debug_mode:
             print(f"[DÉTECTION UI] {app_name} - {context}")
         
+        # Enregistrer la transition pour l'apprentissage
+        if self.learning_engine and self.previous_app and self.previous_app != app_name:
+            self.learning_engine.record_app_transition(self.previous_app, app_name)
+        self.previous_app = app_name
+        
         # Afficher l'info de base immédiatement
         basic_message = f"📱 {app_name}\n🕒 {context}\n\n🤔 Analyse en cours..."
         self.root.after(0, lambda: self.speech_bubble.update_text(basic_message))
@@ -213,17 +232,32 @@ class MainWindow:
         if self.character_widget:
             self.root.after(0, lambda: self.character_widget.set_mood("thinking"))
         
-        # Générer suggestion IA en arrière-plan
+        # Générer suggestion IA et personnalisée en arrière-plan
         def generate_ai_response():
+            suggestions = []
+            
+            # Suggestion personnalisée basée sur l'apprentissage
+            if self.learning_engine:
+                try:
+                    personal_suggestion = self.learning_engine.get_contextual_suggestion(app_name, context)
+                    if personal_suggestion:
+                        suggestions.append(f"👤 {personal_suggestion}")
+                except:
+                    pass  # Ignorer les erreurs de l'apprentissage pour l'instant
+            
+            # Suggestion IA classique
             if self.ollama_client:
-                suggestion = self.ollama_client.generate_suggestion(app_name, context)
-                final_message = f"📱 {app_name}\n🕒 {context}\n\n💡 {suggestion}"
-                
-                # Mettre à jour l'UI dans le thread principal
-                self.root.after(0, lambda: self._update_ai_response(final_message))
+                ai_suggestion = self.ollama_client.generate_suggestion(app_name, context)
+                suggestions.append(f"🤖 {ai_suggestion}")
+            
+            # Combiner les suggestions
+            if suggestions:
+                final_message = f"📱 {app_name}\n🕒 {context}\n\n" + "\n\n".join(suggestions)
             else:
-                fallback_msg = f"📱 {app_name}\n🕒 {context}\n\n🔌 IA non disponible"
-                self.root.after(0, lambda: self.speech_bubble.update_text(fallback_msg))
+                final_message = f"📱 {app_name}\n🕒 {context}\n\n🔌 IA non disponible"
+            
+            # Mettre à jour l'UI dans le thread principal
+            self.root.after(0, lambda: self._update_ai_response(final_message))
         
         # Lancer l'IA dans un thread séparé
         threading.Thread(target=generate_ai_response, daemon=True).start()
@@ -236,6 +270,40 @@ class MainWindow:
         # Animer le personnage
         if self.character_widget:
             self.character_widget.set_mood("happy")
+    
+    def _cycle_theme(self):
+        """Change de thème (cycle entre light, dark, cyberpunk)"""
+        themes = ["light", "dark", "cyberpunk"]
+        current_index = themes.index(self.current_theme)
+        next_index = (current_index + 1) % len(themes)
+        next_theme = themes[next_index]
+        
+        self.current_theme = next_theme
+        self.theme_data = THEMES[next_theme]
+        self._apply_current_theme()
+        print(f"[THEME] Changé vers: {next_theme}")
+    
+    def _apply_current_theme(self):
+        """Applique le thème actuel à tous les widgets"""
+        # Fenêtre principale
+        self.root.configure(bg=self.theme_data["bg"])
+        
+        # Bulle de dialogue
+        if self.speech_bubble:
+            # Trouver le frame de la bulle et le widget de texte
+            for child in self.speech_bubble.winfo_children():
+                if isinstance(child, tk.Frame):
+                    child.configure(bg=self.theme_data["bubble_bg"])
+                    for subchild in child.winfo_children():
+                        if hasattr(subchild, 'text_widget'):
+                            subchild.text_widget.configure(
+                                bg=self.theme_data["bubble_bg"],
+                                fg=self.theme_data["text_color"]
+                            )
+        
+        # Redessiner le personnage avec les nouvelles couleurs
+        if self.character_widget:
+            self.character_widget.draw_character()
     
     def _start_drag(self, event):
         """Début du déplacement de la fenêtre"""
@@ -252,13 +320,13 @@ class MainWindow:
     
     def _show_settings(self):
         """Affiche la fenêtre de paramètres"""
-        # TODO: Implémenter une fenêtre de paramètres
         messagebox.showinfo(
             "Paramètres", 
             f"Assistant IA v0.1\n\n"
             f"Modèle: {settings.ollama.model}\n"
             f"Statut IA: {'✅ Connecté' if self.ollama_client.available else '❌ Déconnecté'}\n"
-            f"Intervalle: {settings.monitoring.check_interval}s"
+            f"Intervalle: {settings.monitoring.check_interval}s\n"
+            f"Thème: {self.current_theme}"
         )
     
     def start_monitoring(self):
@@ -298,120 +366,3 @@ class MainWindow:
         self.root.destroy()
         
         print("👋 Assistant fermé !")
-
-def _initialize_components(self):
-    """Initialise les composants (Ollama, monitoring, apprentissage)"""
-    # Client Ollama
-    self.ollama_client = OllamaClient()
-    
-    # Système d'apprentissage
-    self.learning_engine = UserLearningEngine()
-    
-    # Monitoring système
-    self.system_monitor = SystemMonitor(self._on_app_changed)
-    
-    # Mettre à jour le message initial avec le statut
-    self._update_initial_message()
-
-    # Modifier _on_app_changed
-    def _on_app_changed(self, app_name: str, context: str):
-        """Callback appelé quand l'application active change"""
-        if settings.debug_mode:
-            print(f"[DÉTECTION UI] {app_name} - {context}")
-        
-        # Enregistrer la transition pour l'apprentissage
-        if self.learning_engine and self.previous_app and self.previous_app != app_name:
-            self.learning_engine.record_app_transition(self.previous_app, app_name)
-        self.previous_app = app_name
-        
-        # Afficher l'info de base immédiatement
-        basic_message = f"📱 {app_name}\n🕒 {context}\n\n🤔 Analyse en cours..."
-        self.root.after(0, lambda: self.speech_bubble.update_text(basic_message))
-        
-        # Animer le personnage
-        if self.character_widget:
-            self.root.after(0, lambda: self.character_widget.set_mood("thinking"))
-        
-        # Générer suggestion IA et personnalisée en arrière-plan
-        def generate_ai_response():
-            suggestions = []
-            
-            # Suggestion personnalisée basée sur l'apprentissage
-            if self.learning_engine:
-                personal_suggestion = self.learning_engine.get_contextual_suggestion(app_name, context)
-                if personal_suggestion:
-                    suggestions.append(f"👤 {personal_suggestion}")
-            
-            # Suggestion IA classique
-            if self.ollama_client:
-                ai_suggestion = self.ollama_client.generate_suggestion(app_name, context)
-                suggestions.append(f"🤖 {ai_suggestion}")
-            
-            # Combiner les suggestions
-            if suggestions:
-                final_message = f"📱 {app_name}\n🕒 {context}\n\n" + "\n\n".join(suggestions)
-            else:
-                final_message = f"📱 {app_name}\n🕒 {context}\n\n🔌 IA non disponible"
-            
-            # Mettre à jour l'UI dans le thread principal
-            self.root.after(0, lambda: self._update_ai_response(final_message))
-
-        # Lancer l'IA dans un thread séparé
-        threading.Thread(target=generate_ai_response, daemon=True).start()
-
-
-    # Modifier _create_control_buttons
-    def _create_control_buttons(self, parent):
-        """Crée les boutons de contrôle"""
-        # Bouton thème
-        theme_btn = tk.Button(
-            parent, 
-            text="🎨", 
-            command=self._cycle_theme,
-            bg='#9C27B0', 
-            fg='white', 
-            font=('Arial', 8),
-            width=3, 
-            height=1
-        )
-        theme_btn.pack(side=tk.RIGHT, padx=2, pady=2)
-        
-        # Bouton paramètres
-        settings_btn = tk.Button(
-            parent, 
-            text="⚙️", 
-            command=self._show_settings,
-            bg='#4CAF50', 
-            fg='white', 
-            font=('Arial', 8),
-            width=3, 
-            height=1
-        )
-        settings_btn.pack(side=tk.RIGHT, padx=2, pady=2)
-        
-        # ... autres boutons existants ...
-
-    # Nouvelle méthode
-    def _cycle_theme(self):
-        """Change de thème (cycle entre light, dark, cyberpunk)"""
-        themes = ["light", "dark", "cyberpunk"]
-        current_index = themes.index(self.theme_manager.current_theme)
-        next_index = (current_index + 1) % len(themes)
-        next_theme = themes[next_index]
-        
-        if self.theme_manager.set_theme(next_theme):
-            self._apply_current_theme()
-            print(f"[THEME] Changé vers: {next_theme}")
-
-    def _apply_current_theme(self):
-        """Applique le thème actuel à tous les widgets"""
-        # Fenêtre principale
-        self.theme_manager.apply_theme_to_widget(self.root, "main_window")
-        
-        # Bulle de dialogue
-        if self.speech_bubble:
-            self.theme_manager.apply_theme_to_widget(self.speech_bubble, "speech_bubble")
-        
-        # Redessiner le personnage avec les nouvelles couleurs
-        if self.character_widget:
-            self.character_widget.draw_character()
