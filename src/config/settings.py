@@ -11,7 +11,7 @@ from dataclasses import dataclass
 class OllamaConfig:
     """Configuration pour Ollama"""
     base_url: str = "http://localhost:11434"
-    model: str = "llama3.2"
+    model: str = "adrienbrault/nous-hermes2pro:Q3_K_M"
     timeout: int = 15
     max_tokens: int = 100
     temperature: float = 0.7
@@ -20,16 +20,15 @@ class OllamaConfig:
 @dataclass
 class UIConfig:
     """Configuration interface utilisateur"""
-    window_width: int = 200
-    window_height: int = 250
+    window_width: int = 280        # Augmenté de 200 à 280
+    window_height: int = 350       # Augmenté de 250 à 350
     always_on_top: bool = True
     background_color: str = "#f0f0f0"
     character_size: int = 80
     
     # Position initiale (offset depuis coin bas-droit)
-    initial_x_offset: int = 220
-    initial_y_offset: int = 300
-
+    initial_x_offset: int = 300    # Augmenté pour compenser la largeur
+    initial_y_offset: int = 400    # Augmenté pour compenser la hauteur
 
 @dataclass
 class MonitoringConfig:
