@@ -1,0 +1,30 @@
+# Assistant IA Local - Dépendances Python
+
+# Core dependencies
+psutil>=5.9.0          # Surveillance processus système
+requests>=2.31.0       # Communication HTTP avec Ollama
+
+# Optional dependencies for enhanced features
+# Uncomment as needed:
+
+# Windows APIs (for better window detection)
+pywin32>=306
+
+# Text-to-speech
+pyttsx3>=2.90
+
+# OCR capabilities
+pytesseract>=0.3.10
+Pillow>=10.0.0
+
+# Advanced input monitoring
+pynput>=1.7.6
+
+# Configuration management
+python-dotenv>=1.0.0
+
+# Development dependencies (optional)
+pytest>=7.0.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0
