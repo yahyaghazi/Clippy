@@ -94,7 +94,7 @@ class SystemMonitor:
                                 'score': score,
                                 'proc_info': proc_info
                             })
-                            print(f"[DEBUG] App intéressante: {proc_name} (score: {score:.1f})")
+                            # print(f"[DEBUG] App intéressante: {proc_name} (score: {score:.1f})")
                 
                 except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                     continue

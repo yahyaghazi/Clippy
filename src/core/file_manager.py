@@ -15,6 +15,54 @@ from ..config.settings import settings
 
 
 class FileManager:
+    def create_and_run_bat(self, bat_name: str, bat_content: str) -> str:
+        """Crée un fichier .bat dans le dossier de base et l'exécute."""
+        import subprocess
+        bat_path = os.path.join(self.base_directory, bat_name if bat_name.endswith('.bat') else bat_name + '.bat')
+        try:
+            with open(bat_path, 'w', encoding='utf-8') as f:
+                f.write(bat_content)
+        except Exception as e:
+            return f"❌ Erreur lors de la création du .bat : {e}"
+        try:
+            completed = subprocess.run([bat_path], capture_output=True, text=True, shell=True)
+            if completed.returncode == 0:
+                return f"✅ .bat exécuté avec succès : {bat_path}\n{completed.stdout.strip()}"
+            else:
+                return f"❌ Erreur à l'exécution du .bat : {completed.stderr.strip()}"
+        except Exception as e:
+            return f"❌ Exception à l'exécution du .bat : {e}"
+        
+    def run_shell_command(self, command: str) -> str:
+        """Exécute une commande shell (PowerShell sous Windows) et retourne la sortie ou l'erreur."""
+        import subprocess
+        try:
+            completed = subprocess.run(["pwsh", "-Command", command], capture_output=True, text=True, shell=False)
+            if completed.returncode == 0:
+                return completed.stdout.strip() or "✅ Commande exécutée avec succès."
+            else:
+                return f"❌ Erreur: {completed.stderr.strip()}"
+        except Exception as e:
+            return f"❌ Exception lors de l'exécution: {e}"
+        
+    def move_files_by_extension(self, extension: str) -> str:
+        """Déplace tous les fichiers d'une extension donnée dans un dossier nommé selon l'extension (ex: .wav -> Audio)"""
+        ext = extension.lower().lstrip('.')
+        if ext == "wav":
+            target_dir = os.path.join(self.base_directory, "Audio")
+        else:
+            target_dir = os.path.join(self.base_directory, ext.capitalize())
+        os.makedirs(target_dir, exist_ok=True)
+        moved = 0
+        for item in os.listdir(self.base_directory):
+            item_path = os.path.join(self.base_directory, item)
+            if os.path.isfile(item_path) and item.lower().endswith(f'.{ext}'):
+                new_path = os.path.join(target_dir, item)
+                shutil.move(item_path, new_path)
+                moved += 1
+        if moved == 0:
+            return f"❌ Aucun fichier .{ext} trouvé à déplacer."
+        return f"✅ {moved} fichier(s) .{ext} déplacé(s) dans '{os.path.basename(target_dir)}'."
     """Gestionnaire de fichiers intelligent avec IA"""
     
     def __init__(self, base_directory: str = None):
@@ -322,19 +370,21 @@ Code :"""
         elif action == "déplacer":
             if not target_path:
                 return "❌ Chemin de destination non précisé."
-            
             try:
                 destination_dir = os.path.join(self.base_directory, target_path)
                 os.makedirs(destination_dir, exist_ok=True)
-                
                 new_path = os.path.join(destination_dir, os.path.basename(file_path))
                 shutil.move(file_path, new_path)
-                
                 self.last_path_found = new_path
                 return f"📁 Fichier déplacé vers : {target_path}"
-                
             except Exception as e:
                 return f"❌ Erreur déplacement : {e}"
+
+        elif action == "deplacer_extension":
+            # Déplacer tous les fichiers d'une extension donnée (ex: wav)
+            if not file_type:
+                return "❌ Extension de fichier non précisée."
+            return self.move_files_by_extension(file_type)
         
         elif action == "supprimer":
             try:

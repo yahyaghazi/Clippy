@@ -291,15 +291,9 @@ class MainWindow:
         
         # Générer suggestion IA en arrière-plan
         def generate_ai_response():
-            if self.ollama_client:
-                suggestion = self.ollama_client.generate_suggestion(app_name, context)
-                final_message = f"📱 {app_name}\n🕒 {context}\n\n💡 {suggestion}"
-                
-                # Mettre à jour l'UI dans le thread principal
-                self.root.after(0, lambda: self._update_ai_response(final_message))
-            else:
-                fallback_msg = f"📱 {app_name}\n🕒 {context}\n\n🔌 IA non disponible"
-                self.root.after(0, lambda: self.speech_bubble.update_text(fallback_msg))
+            # Fonctionnalité de suggestion IA désactivée
+            final_message = f"📱 {app_name}\n🕒 {context}\n\n💡 (Suggestion IA désactivée)"
+            self.root.after(0, lambda: self._update_ai_response(final_message))
         
         # Lancer l'IA dans un thread séparé
         threading.Thread(target=generate_ai_response, daemon=True).start()

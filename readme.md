@@ -19,21 +19,21 @@ Un assistant IA local moderne inspiré de Clippy, avec intelligence artificielle
 ## 📸 Captures d'écran
 
 ```
-┌─────────────────────┐
+┌──────────────────────┐
 │ 🤖 Assistant IA   🔊│
-├─────────────────────┤
-│                     │
-│       😊            │
-│   (Personnage)      │
-│                     │
-├─────────────────────┤
-│ 📱 Opera            │
-│ 🕒 Navigation web   │
-│                     │
-│ 💡 Essaie Ctrl+T   │
-│ pour rouvrir un     │
-│ onglet fermé !      │
-└─────────────────────┘
+├──────────────────────┤
+│                      │
+│                      │
+│   (Personnage)       │
+│                      │
+├──────────────────────┤
+│  Opera               │
+│  Navigation web      │
+│                      │
+│   Essaie Ctrl+T      │
+│  pour rouvrir un     │
+│  onglet fermé !      │ 
+└──────────────────────┘
 ```
 
 ## 🚀 Installation rapide

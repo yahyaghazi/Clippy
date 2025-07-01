@@ -12,7 +12,7 @@ class OllamaConfig:
     """Configuration pour Ollama"""
     base_url: str = "http://localhost:11434"
     model: str = "adrienbrault/nous-hermes2pro:Q3_K_M"
-    timeout: int = 15
+    timeout: int = 60
     max_tokens: int = 100
     temperature: float = 0.7
 
