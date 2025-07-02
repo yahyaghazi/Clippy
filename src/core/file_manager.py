@@ -12,53 +12,19 @@ from typing import Dict, Optional, Any
 import requests
 
 from ..config.settings import settings
-from ..core.command_interpreter import CommandInterpreter
 
 
 class FileManager:
     
     def __init__(self, base_directory: str = None):
-        self.base_directory = base_directory or str(Path.home() / "Documents" / "AI_Assistant_Files")
-        # self.base_directory = base_directory or r"C:\\Windows\\System32"
+        self.base_directory = base_directory or r"C:\\"
         self.last_file_logical = None
         self.last_path_found = None
-        self.command_interpreter = CommandInterpreter()
         
         # Créer le dossier de base s'il n'existe pas
         Path(self.base_directory).mkdir(parents=True, exist_ok=True)
         
         print(f"[FILE_MANAGER] Dossier de base: {self.base_directory}")
-
-
-    def create_and_run_bat(self, bat_name: str, bat_content: str) -> str:
-        """Crée un fichier .bat dans le dossier de base et l'exécute."""
-        import subprocess
-        bat_path = os.path.join(self.base_directory, bat_name if bat_name.endswith('.bat') else bat_name + '.bat')
-        try:
-            with open(bat_path, 'w', encoding='utf-8') as f:
-                f.write(bat_content)
-        except Exception as e:
-            return f"❌ Erreur lors de la création du .bat : {e}"
-        try:
-            completed = subprocess.run([bat_path], capture_output=True, text=True, shell=True)
-            if completed.returncode == 0:
-                return f"✅ .bat exécuté avec succès : {bat_path}\n{completed.stdout.strip()}"
-            else:
-                return f"❌ Erreur à l'exécution du .bat : {completed.stderr.strip()}"
-        except Exception as e:
-            return f"❌ Exception à l'exécution du .bat : {e}"
-        
-    def run_shell_command(self, command: str) -> str:
-        """Exécute une commande shell (PowerShell sous Windows) et retourne la sortie ou l'erreur."""
-        import subprocess
-        try:
-            completed = subprocess.run(["pwsh", "-Command", command], capture_output=True, text=True, shell=False)
-            if completed.returncode == 0:
-                return completed.stdout.strip() or "✅ Commande exécutée avec succès."
-            else:
-                return f"❌ Erreur: {completed.stderr.strip()}"
-        except Exception as e:
-            return f"❌ Exception lors de l'exécution: {e}"
         
     def move_files_by_extension(self, extension: str) -> str:
         """Déplace tous les fichiers d'une extension donnée dans un dossier nommé selon l'extension (ex: .wav -> Audio)"""
@@ -82,7 +48,6 @@ class FileManager:
     
     def analyze_command(self, command: str) -> Optional[Dict[str, Any]]:
         """Analyse une commande en langage naturel avec l'IA"""
-        enhanced_prompt = self.command_interpreter.create_enhanced_prompt(command)
 
         prompt = f"""
 Tu es un assistant IA spécialisé dans la gestion de fichiers. Analyse cette commande en français et retourne un JSON structuré :
@@ -116,7 +81,7 @@ Commande : {command}
                 f"{ollama.base_url}/api/generate",
                 json={
                     "model": ollama.model,
-                    "prompt": enhanced_prompt,
+                    "prompt": prompt,
                     "stream": False,
                     "options": {
                         "temperature": 0.3,  # Plus déterministe pour l'analyse
@@ -139,15 +104,23 @@ Commande : {command}
             return None
     
     def _extract_json(self, text: str) -> Optional[Dict[str, Any]]:
-        """Extrait le JSON de la réponse de l'IA"""
-        # Rechercher le JSON dans le texte
+        """Extrait le JSON de la réponse de l'IA (tolère les guillemets simples et corrige les guillemets non échappés dans les valeurs)"""
+        print(f"[FILE_MANAGER] DEBUG - Réponse brute IA : {text}")
         match = re.search(r'\{[\s\S]+\}', text)
         if match:
+            json_str = match.group(0)
+            # Correction 1 : remplacer les guillemets simples par des guillemets doubles pour les valeurs
+            json_str = re.sub(r':\s*\'(.*?)\'([,\n\r}])', r': "\1"\2', json_str)
+            # Correction 2 : échapper les guillemets doubles non échappés à l'intérieur des valeurs
+            def escape_inner_quotes(m):
+                value = m.group(1)
+                value_escaped = value.replace('"', '\\"')
+                return f': "{value_escaped}"{m.group(2)}'
+            json_str = re.sub(r':\s*"([^"]*?\"[^"]*?)"([,\n\r}])', escape_inner_quotes, json_str)
             try:
-                return json.loads(match.group(0))
+                return json.loads(json_str)
             except json.JSONDecodeError as e:
-                print(f"[FILE_MANAGER] JSON mal formé: {e}")
-        
+                print(f"[FILE_MANAGER] JSON mal formé: {e}\n[FILE_MANAGER] JSON reçu corrigé: {json_str}")
         print(f"[FILE_MANAGER] Réponse non exploitable: {text}")
         return None
     
@@ -325,28 +298,7 @@ Code :"""
             confirmation_required = command_json.get("confirmation_required", False)
             
             print(f"[FILE_MANAGER] Commande système détectée: {command_content}")
-            
-            # Vérification de sécurité
-            is_safe, safety_msg = self.command_interpreter.is_safe_command(command_content)
-            if not is_safe:
-                return f"🚨 SÉCURITÉ: {safety_msg}"
-            
-            # Confirmation pour commandes dangereuses
-            if confirmation_required and danger_level in ["high", "medium"]:
-                confirmation_msg = self.command_interpreter.get_confirmation_message({
-                    "action": logical_file.replace(".bat", "").replace("_command", ""),
-                    "description": f"Exécution de: {command_content}",
-                    "danger_level": danger_level,
-                    "command": command_content
-                })
-                
-                # Pour l'instant, on log la demande de confirmation
-                # Dans une vraie interface, vous ajouteriez une boîte de dialogue
-                print(f"[CONFIRMATION NEEDED] {confirmation_msg}")
-                
-                # Simuler acceptation pour les tests (à remplacer par vraie confirmation)
-                # return f"🔒 Confirmation requise:\n{confirmation_msg}"
-            
+                        
             # Exécuter la commande
             if command_content.strip():
                 return self.create_and_run_bat(logical_file, command_content)
@@ -436,19 +388,11 @@ Code :"""
         else:
             return f"❓ Action inconnue : {action}"
     
-    def list_system_commands(self) -> str:
-        """Liste toutes les commandes système disponibles"""
-        return self.command_interpreter.list_available_commands()
 
     def process_command(self, command: str) -> str:
         """Traite une commande complète - VERSION AMÉLIORÉE"""
         print(f"[FILE_MANAGER] Commande reçue: {command}")
-        
-        # 🆕 Debug: Vérifier d'abord la détection système
-        system_detection = self.command_interpreter.detect_system_command(command)
-        if system_detection:
-            print(f"[FILE_MANAGER] 🎯 Commande système détectée: {system_detection['description']}")
-        
+                
         # Analyser la commande (maintenant avec détection système améliorée)
         command_json = self.analyze_command(command)
         if not command_json:
