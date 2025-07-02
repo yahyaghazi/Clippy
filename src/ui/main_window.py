@@ -297,70 +297,7 @@ class MainWindow:
         
         # Lancer l'IA dans un thread séparé
         threading.Thread(target=generate_ai_response, daemon=True).start()
-    
-    def _on_chat_message(self, message: str):
-        """Callback appelé quand l'utilisateur envoie un message dans le chat"""
-        print(f"[CHAT UI] Message reçu: {message}")
         
-        # Passer en mode chat
-        self.chat_mode = True
-        
-        # Afficher que l'IA réfléchit
-        thinking_msg = f"💬 Vous: {message}\n\n🤔 L'IA réfléchit..."
-        self.speech_bubble.update_text(thinking_msg)
-        
-        # Animer le personnage
-        if self.character_widget:
-            self.character_widget.set_mood("thinking")
-        
-        # Générer réponse IA
-        def generate_chat_response():
-            if self.ollama_client:
-                # Créer un prompt pour la conversation
-                chat_prompt = f"L'utilisateur te dit: '{message}'. Réponds de manière naturelle et utile en 1-2 phrases maximum."
-                
-                # Utiliser directement la méthode de génération avec un prompt custom
-                try:
-                    import requests
-                    payload = {
-                        "model": self.ollama_client.model,
-                        "prompt": chat_prompt,
-                        "stream": False,
-                        "options": {
-                            "temperature": 0.8,  # Plus créatif pour la conversation
-                            "num_predict": 150
-                        }
-                    }
-                    
-                    response = requests.post(
-                        f"{self.ollama_client.base_url}/api/generate",
-                        json=payload,
-                        timeout=settings.ollama.timeout
-                    )
-                    
-                    if response.status_code == 200:
-                        result = response.json()
-                        ai_response = result.get("response", "").strip()
-                        
-                        if ai_response:
-                            final_message = f"💬 Vous: {message}\n\n🤖 Assistant: {ai_response}"
-                        else:
-                            final_message = f"💬 Vous: {message}\n\n🤖 Assistant: Je n'ai pas de réponse pour le moment."
-                    else:
-                        final_message = f"💬 Vous: {message}\n\n❌ Erreur de communication avec l'IA"
-                
-                except Exception as e:
-                    final_message = f"💬 Vous: {message}\n\n❌ Erreur: {str(e)}"
-                
-            else:
-                final_message = f"💬 Vous: {message}\n\n🔌 IA non disponible"
-            
-            # Mettre à jour l'UI
-            self.root.after(0, lambda: self._update_chat_response(final_message))
-        
-        # Lancer la génération en arrière-plan
-        threading.Thread(target=generate_chat_response, daemon=True).start()
-    
     def _update_chat_response(self, message: str):
         """Met à jour l'interface avec la réponse du chat"""
         print("[MAIN] Mise à jour de la réponse du chat")

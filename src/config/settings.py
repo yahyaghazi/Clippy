@@ -7,6 +7,7 @@ from typing import Dict, List
 from dataclasses import dataclass
 
 
+
 @dataclass
 class OllamaConfig:
     """Configuration pour Ollama"""

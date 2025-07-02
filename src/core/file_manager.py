@@ -12,9 +12,24 @@ from typing import Dict, Optional, Any
 import requests
 
 from ..config.settings import settings
+from ..core.command_interpreter import CommandInterpreter
 
 
 class FileManager:
+    
+    def __init__(self, base_directory: str = None):
+        self.base_directory = base_directory or str(Path.home() / "Documents" / "AI_Assistant_Files")
+        # self.base_directory = base_directory or r"C:\\Windows\\System32"
+        self.last_file_logical = None
+        self.last_path_found = None
+        self.command_interpreter = CommandInterpreter()
+        
+        # Créer le dossier de base s'il n'existe pas
+        Path(self.base_directory).mkdir(parents=True, exist_ok=True)
+        
+        print(f"[FILE_MANAGER] Dossier de base: {self.base_directory}")
+
+
     def create_and_run_bat(self, bat_name: str, bat_content: str) -> str:
         """Crée un fichier .bat dans le dossier de base et l'exécute."""
         import subprocess
@@ -65,18 +80,10 @@ class FileManager:
         return f"✅ {moved} fichier(s) .{ext} déplacé(s) dans '{os.path.basename(target_dir)}'."
     """Gestionnaire de fichiers intelligent avec IA"""
     
-    def __init__(self, base_directory: str = None):
-        self.base_directory = base_directory or str(Path.home() / "Documents" / "AI_Assistant_Files")
-        self.last_file_logical = None
-        self.last_path_found = None
-        
-        # Créer le dossier de base s'il n'existe pas
-        Path(self.base_directory).mkdir(parents=True, exist_ok=True)
-        
-        print(f"[FILE_MANAGER] Dossier de base: {self.base_directory}")
-    
     def analyze_command(self, command: str) -> Optional[Dict[str, Any]]:
         """Analyse une commande en langage naturel avec l'IA"""
+        enhanced_prompt = self.command_interpreter.create_enhanced_prompt(command)
+
         prompt = f"""
 Tu es un assistant IA spécialisé dans la gestion de fichiers. Analyse cette commande en français et retourne un JSON structuré :
 
@@ -109,7 +116,7 @@ Commande : {command}
                 f"{ollama.base_url}/api/generate",
                 json={
                     "model": ollama.model,
-                    "prompt": prompt,
+                    "prompt": enhanced_prompt,
                     "stream": False,
                     "options": {
                         "temperature": 0.3,  # Plus déterministe pour l'analyse
@@ -303,7 +310,7 @@ Code :"""
             return None
             
     def execute_action(self, command_json: Dict[str, Any]) -> str:
-        """Exécute l'action demandée"""
+        """Exécute l'action demandée - VERSION AMÉLIORÉE"""
         action = command_json.get("action", "")
         logical_file = command_json.get("fichier", "")
         target_path = command_json.get("chemin", "")
@@ -312,6 +319,40 @@ Code :"""
         
         print(f"[FILE_MANAGER] Action: {action}, Fichier: {logical_file}")
         
+        if action == "creer_et_executer_bat":
+            command_content = command_json.get("command_content", instruction)
+            danger_level = command_json.get("danger_level", "low")
+            confirmation_required = command_json.get("confirmation_required", False)
+            
+            print(f"[FILE_MANAGER] Commande système détectée: {command_content}")
+            
+            # Vérification de sécurité
+            is_safe, safety_msg = self.command_interpreter.is_safe_command(command_content)
+            if not is_safe:
+                return f"🚨 SÉCURITÉ: {safety_msg}"
+            
+            # Confirmation pour commandes dangereuses
+            if confirmation_required and danger_level in ["high", "medium"]:
+                confirmation_msg = self.command_interpreter.get_confirmation_message({
+                    "action": logical_file.replace(".bat", "").replace("_command", ""),
+                    "description": f"Exécution de: {command_content}",
+                    "danger_level": danger_level,
+                    "command": command_content
+                })
+                
+                # Pour l'instant, on log la demande de confirmation
+                # Dans une vraie interface, vous ajouteriez une boîte de dialogue
+                print(f"[CONFIRMATION NEEDED] {confirmation_msg}")
+                
+                # Simuler acceptation pour les tests (à remplacer par vraie confirmation)
+                # return f"🔒 Confirmation requise:\n{confirmation_msg}"
+            
+            # Exécuter la commande
+            if command_content.strip():
+                return self.create_and_run_bat(logical_file, command_content)
+            else:
+                return "❌ Aucune commande à exécuter"
+                
         # Utiliser le dernier fichier si pas de nom spécifié
         if not logical_file and self.last_file_logical:
             logical_file = self.last_file_logical
@@ -356,7 +397,7 @@ Code :"""
         self.last_file_logical = logical_file
         self.last_path_found = file_path
         
-        # Exécuter selon l'action
+        # Exécuter selon l'action (reste identique à votre code)
         if action == "lancer" or action == "ouvrir":
             try:
                 if os.name == 'nt':  # Windows
@@ -381,7 +422,6 @@ Code :"""
                 return f"❌ Erreur déplacement : {e}"
 
         elif action == "deplacer_extension":
-            # Déplacer tous les fichiers d'une extension donnée (ex: wav)
             if not file_type:
                 return "❌ Extension de fichier non précisée."
             return self.move_files_by_extension(file_type)
@@ -396,16 +436,25 @@ Code :"""
         else:
             return f"❓ Action inconnue : {action}"
     
+    def list_system_commands(self) -> str:
+        """Liste toutes les commandes système disponibles"""
+        return self.command_interpreter.list_available_commands()
+
     def process_command(self, command: str) -> str:
-        """Traite une commande complète en langage naturel"""
+        """Traite une commande complète - VERSION AMÉLIORÉE"""
         print(f"[FILE_MANAGER] Commande reçue: {command}")
         
-        # Analyser la commande
+        # 🆕 Debug: Vérifier d'abord la détection système
+        system_detection = self.command_interpreter.detect_system_command(command)
+        if system_detection:
+            print(f"[FILE_MANAGER] 🎯 Commande système détectée: {system_detection['description']}")
+        
+        # Analyser la commande (maintenant avec détection système améliorée)
         command_json = self.analyze_command(command)
         if not command_json:
             return "❌ Impossible de comprendre la commande."
         
-        print(f"[FILE_MANAGER] Analyse: {command_json}")
+        print(f"[FILE_MANAGER] Analyse JSON: {command_json}")
         
         # Exécuter l'action
         result = self.execute_action(command_json)
