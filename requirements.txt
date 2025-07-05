@@ -1,34 +1,56 @@
-# Assistant IA Local - Dépendances Python
+# Assistant IA Clippy Moderne - Dépendances complètes
 
-# Core dependencies
+# === DÉPENDANCES PRINCIPALES ===
 psutil>=5.9.0          # Surveillance processus système
 requests>=2.31.0       # Communication HTTP avec Ollama
 
-# Optional dependencies for enhanced features
-# Uncomment as needed:
+# === INTERFACE UTILISATEUR ===
+# Tkinter est inclus avec Python (pas besoin d'installer)
+Pillow>=10.0.0         # Traitement d'images pour Clippy
 
-# Windows APIs (for better window detection)
-pywin32>=306
+# === FONCTIONNALITÉS VOCALES ===
+pyttsx3>=2.90          # Synthèse vocale
+speechrecognition>=3.9.0  # Reconnaissance vocale
+pyaudio>=0.2.11        # Audio input/output
 
-# Text-to-speech
-pyttsx3>=2.90
+# === FONCTIONNALITÉS AVANCÉES DE FICHIERS ===
+# PDF et traitement documents
+fpdf2>=2.7.0           # Génération PDF
+PyMuPDF>=1.23.0        # Lecture PDF (fitz)
+python-docx>=0.8.11    # Lecture documents Word
 
-# OCR capabilities
-pytesseract>=0.3.10
-Pillow>=10.0.0
+# Web scraping et recherche
+beautifulsoup4>=4.12.0 # Parsing HTML
+duckduckgo-search>=3.9.0  # Recherche web
+lxml>=4.9.0            # Parser XML/HTML rapide
 
-# Advanced input monitoring
-pynput>=1.7.6
+# Documents ODF/ODT
+odfpy>=1.4.0           # Génération documents OpenDocument
 
-# Configuration management
-python-dotenv>=1.0.0
+# === TRAITEMENT DATES ET PLANNING ===
+schedule>=1.2.0        # Système de rappels
+dateparser>=1.1.0      # Analyse dates en langage naturel
+python-dateutil>=2.8.0  # Manipulation dates
 
-# Development dependencies (optional)
-pytest>=7.0.0
-black>=23.0.0
-flake8>=6.0.0
-mypy>=1.0.0
+# === CONFIGURATION ET ENVIRONNEMENT ===
+python-dotenv>=1.0.0   # Variables d'environnement
 
-# speech to text
-speechrecognition>=3.9.0
-pyaudio>=0.2.11
+# === APIS WINDOWS (optionnel) ===
+pywin32>=306; sys_platform == "win32"  # APIs Windows spécifiques
+
+# === OUTILS DE DÉVELOPPEMENT (optionnel) ===
+pytest>=7.0.0          # Tests unitaires
+black>=23.0.0          # Formatage code
+flake8>=6.0.0          # Linting
+mypy>=1.0.0            # Vérification types
+
+# === DÉPENDANCES SYSTÈME LINUX (informationnel) ===
+# Sur Linux, installez aussi :
+# sudo apt-get install espeak espeak-data libespeak-dev
+# sudo apt-get install portaudio19-dev
+# sudo apt-get install python3-tk
+
+# === DÉPENDANCES SYSTÈME MACOS (informationnel) ===
+# Sur macOS avec Homebrew :
+# brew install portaudio
+# brew install espeak
