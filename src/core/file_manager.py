@@ -18,11 +18,12 @@ class FileManager:
     """Gestionnaire de fichiers intelligent avec IA"""
     
     def __init__(self, base_directory: str = None):
-        self.base_directory = base_directory or str(Path.home() / "Documents" / "AI_Assistant_Files")
+        # self.base_directory = base_directory or str(Path.home() / "Documents" / "AI_Assistant_Files")
+        self.base_directory = base_directory or str(Path.home())  # Utilisation de C:\ pour Windows, sinon utiliser Path.home() pour Linux/Mac
         self.last_file_logical = None
         self.last_path_found = None
         
-        # Créer le dossier de base s'il n'existe pas
+        # Créer le dossier de base s'il n'existe pas (inutile pour C:\ mais conservé pour compatibilité)
         Path(self.base_directory).mkdir(parents=True, exist_ok=True)
         
         print(f"[FILE_MANAGER] Dossier de base: {self.base_directory}")
@@ -275,29 +276,34 @@ Code :"""
         if action in ["modifier_code", "creer"]:
             if not instruction:
                 return "❌ Aucune instruction pour générer le code."
-            
+
+            # Ajout automatique de l'extension si manquante
+            filename = logical_file
+            if file_type and not filename.lower().endswith(f".{file_type.lower()}"):
+                filename = f"{filename}.{file_type.lower()}"
+
             code = self.generate_code(instruction, file_type)
             if not code:
                 return "❌ Impossible de générer le code."
-            
+
             # Définir le chemin pour création
             if action == "creer":
                 target_dir = os.path.join(self.base_directory, target_path) if target_path else self.base_directory
                 os.makedirs(target_dir, exist_ok=True)
-                file_path = os.path.join(target_dir, logical_file)
+                file_path = os.path.join(target_dir, filename)
             elif not file_path:
                 return f"❌ Aucun fichier trouvé correspondant à : '{logical_file}'"
-            
+
             try:
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(code)
-                
-                self.last_file_logical = logical_file
+
+                self.last_file_logical = filename
                 self.last_path_found = file_path
-                
+
                 action_text = "créé" if action == "creer" else "modifié"
                 return f"📄 Fichier {action_text} : {os.path.basename(file_path)}"
-                
+
             except Exception as e:
                 return f"❌ Erreur d'écriture : {e}"
         
@@ -366,10 +372,10 @@ Code :"""
     def list_files(self, subdirectory: str = "") -> str:
         """Liste les fichiers dans un sous-dossier"""
         target_dir = os.path.join(self.base_directory, subdirectory) if subdirectory else self.base_directory
-        
+
         if not os.path.exists(target_dir):
             return f"❌ Dossier non trouvé : {subdirectory}"
-        
+
         files = []
         for item in os.listdir(target_dir):
             item_path = os.path.join(target_dir, item)
@@ -377,10 +383,10 @@ Code :"""
                 files.append(f"📄 {item}")
             elif os.path.isdir(item_path):
                 files.append(f"📁 {item}/")
-        
+
         if not files:
             return f"📂 Dossier vide : {subdirectory or 'racine'}"
-        
+
         return f"📂 Contenu de {subdirectory or 'racine'} :\n" + "\n".join(files[:10])  # Limiter à 10 items
 
 
