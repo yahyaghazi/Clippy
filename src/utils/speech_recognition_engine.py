@@ -1,49 +1,69 @@
 """
 Moteur de reconnaissance vocale pour l'Assistant IA
+Version avec gestion d'erreurs améliorée
 """
 
 import threading
 import queue
 import time
 from typing import Optional, Callable
-import speech_recognition as sr
+
+# Import avec gestion d'erreur
+try:
+    import speech_recognition as sr
+    SPEECH_RECOGNITION_AVAILABLE = True
+except ImportError:
+    SPEECH_RECOGNITION_AVAILABLE = False
+    print("⚠️ Module speech_recognition non disponible")
 
 
 class SpeechRecognitionEngine:
-    """Gestionnaire de reconnaissance vocale"""
+    """Gestionnaire de reconnaissance vocale avec fallbacks"""
     
     def __init__(self, on_speech_callback: Callable[[str], None] = None):
-        self.recognizer = sr.Recognizer()
-        self.microphone = None
         self.available = False
         self.listening = False
         self.continuous_mode = False
-        
         self.on_speech_callback = on_speech_callback
-        self.speech_queue = queue.Queue()
-        self.worker_thread = None
         
-        # Configuration
-        self.language = "fr-FR"
-        self.timeout = 5  # secondes
-        self.phrase_timeout = 2  # secondes
+        if not SPEECH_RECOGNITION_AVAILABLE:
+            print("❌ Reconnaissance vocale non disponible - module manquant")
+            return
         
-        self._initialize_microphone()
-        
+        try:
+            self.recognizer = sr.Recognizer()
+            self.microphone = None
+            self.speech_queue = queue.Queue()
+            self.worker_thread = None
+            
+            # Configuration
+            self.language = "fr-FR"
+            self.timeout = 5  # secondes
+            self.phrase_timeout = 2  # secondes
+            
+            self._initialize_microphone()
+        except Exception as e:
+            print(f"❌ Erreur initialisation reconnaissance vocale: {e}")
+            self.available = False
+    
     def _initialize_microphone(self):
-        """Initialise le microphone"""
+        """Initialise le microphone avec gestion d'erreurs"""
         try:
             # Tester la disponibilité du microphone
             self.microphone = sr.Microphone()
             
             # Calibrer le microphone pour le bruit ambiant
+            print("[SPEECH] Calibrage du microphone...")
             with self.microphone as source:
-                print("[SPEECH] Calibrage du microphone...")
                 self.recognizer.adjust_for_ambient_noise(source, duration=1)
             
             self.available = True
             print("✅ Microphone initialisé et calibré")
             
+        except OSError as e:
+            print(f"❌ Erreur microphone (OSError): {e}")
+            print("   Vérifiez que le microphone est connecté")
+            self.available = False
         except Exception as e:
             print(f"❌ Erreur initialisation microphone: {e}")
             self.available = False
@@ -51,7 +71,6 @@ class SpeechRecognitionEngine:
     def listen_once(self) -> Optional[str]:
         """Écoute une seule fois et retourne le texte reconnu"""
         if not self.available:
-            print("[SPEECH] Microphone non disponible")
             return None
         
         try:
@@ -206,6 +225,9 @@ class SpeechRecognitionEngine:
     
     def get_microphone_list(self) -> list:
         """Retourne la liste des microphones disponibles"""
+        if not SPEECH_RECOGNITION_AVAILABLE:
+            return []
+        
         try:
             mic_list = []
             for index, name in enumerate(sr.Microphone.list_microphone_names()):
@@ -217,6 +239,9 @@ class SpeechRecognitionEngine:
     
     def set_microphone(self, device_index: int):
         """Change le microphone utilisé"""
+        if not self.available:
+            return False
+        
         try:
             self.microphone = sr.Microphone(device_index=device_index)
             print(f"[SPEECH] Microphone changé: index {device_index}")
@@ -231,5 +256,14 @@ class SpeechRecognitionEngine:
             return False
 
 
-# Instance globale (sera initialisée dans main_window)
-speech_engine: Optional[SpeechRecognitionEngine] = None
+# Fonction pour créer une instance avec gestion d'erreur
+def create_speech_engine(callback=None):
+    """Crée une instance de SpeechRecognitionEngine avec gestion d'erreur"""
+    if not SPEECH_RECOGNITION_AVAILABLE:
+        return None
+    
+    try:
+        return SpeechRecognitionEngine(callback)
+    except Exception as e:
+        print(f"Impossible de créer le moteur de reconnaissance vocale: {e}")
+        return None

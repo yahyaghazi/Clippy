@@ -586,32 +586,38 @@ class EnhancedMainWindow:
     
     def _quick_action(self, action_type: str):
         """Actions rapides depuis les boutons avancés"""
-        if action_type == "resumer":
-            filename = tk.simpledialog.askstring("Résumer", "Nom du fichier à résumer :")
-            if filename:
-                self._process_file_command(f"résume le document {filename}")
-        
-        elif action_type == "webscraping":
-            topic = tk.simpledialog.askstring("Web Research", "Sujet à rechercher :")
-            if topic:
-                self._process_file_command(f"cherche des infos sur {topic} et crée un PDF")
-        
-        elif action_type == "generer":
-            instruction = tk.simpledialog.askstring("Générer", "Type de document à générer :")
-            if instruction:
-                self._process_file_command(f"génère un document {instruction}")
-        
-        elif action_type == "lister":
-            dossier = tk.simpledialog.askstring("Lister", "Dossier à lister (vide = racine) :")
-            self._process_file_command(f"liste les fichiers {dossier or ''}")
-        
-        elif action_type == "traduire":
-            texte = tk.simpledialog.askstring("Traduire", "Texte à traduire :")
-            if texte:
-                self._process_file_command(f"traduis : {texte}")
-        
-        elif action_type == "historique":
-            self._process_file_command("affiche l'historique")
+        try:
+            import tkinter.simpledialog as simpledialog
+            
+            if action_type == "resumer":
+                filename = simpledialog.askstring("Résumer", "Nom du fichier à résumer :")
+                if filename:
+                    self._process_file_command(f"résume le document {filename}")
+            
+            elif action_type == "webscraping":
+                topic = simpledialog.askstring("Web Research", "Sujet à rechercher :")
+                if topic:
+                    self._process_file_command(f"cherche des infos sur {topic} et crée un PDF")
+            
+            elif action_type == "generer":
+                instruction = simpledialog.askstring("Générer", "Type de document à générer :")
+                if instruction:
+                    self._process_file_command(f"génère un document {instruction}")
+            
+            elif action_type == "lister":
+                dossier = simpledialog.askstring("Lister", "Dossier à lister (vide = racine) :")
+                self._process_file_command(f"liste les fichiers {dossier or ''}")
+            
+            elif action_type == "traduire":
+                texte = simpledialog.askstring("Traduire", "Texte à traduire :")
+                if texte:
+                    self._process_file_command(f"traduis : {texte}")
+            
+            elif action_type == "historique":
+                self._process_file_command("affiche l'historique")
+                
+        except ImportError:
+            messagebox.showerror("Erreur", "Interface de saisie non disponible")
     
     def _process_file_command(self, command: str):
         """Traite une commande via le gestionnaire de fichiers"""
@@ -721,7 +727,8 @@ class EnhancedMainWindow:
                         
                         if response.status_code == 200:
                             ai_response = response.json().get("response", "").strip()
-                            final_message = f"💬 Vous: {message}\n\n📎 Clippy: {ai_response or 'Je n\'ai pas de réponse...'}"
+                            fallback_text = "Je n'ai pas de réponse..."
+                            final_message = f"💬 Vous: {message}\n\n📎 Clippy: {ai_response or fallback_text}"
                         else:
                             final_message = f"💬 Vous: {message}\n\n❌ Erreur de communication avec l'IA"
                     

@@ -1,6 +1,6 @@
 """
 Point d'entrée principal de l'Assistant Clippy IA Moderne
-Version fusionnée avec toutes les fonctionnalités
+Version corrigée et optimisée
 """
 
 import sys
@@ -11,13 +11,13 @@ from pathlib import Path
 src_path = Path(__file__).parent / "src"
 sys.path.insert(0, str(src_path))
 
-from src.ui.enhanced_main_window import EnhancedMainWindow
+from src.ui.main_window import MainWindow
 from src.config.settings import settings
 from src.utils.logger import setup_logger
 
 
 def check_dependencies():
-    """Vérifie que toutes les dépendances sont installées"""
+    """Vérifie que les dépendances critiques sont installées"""
     missing_deps = []
     optional_missing = []
     
@@ -25,26 +25,24 @@ def check_dependencies():
     critical_deps = [
         ("psutil", "psutil"),
         ("requests", "requests"),
-        ("PIL", "Pillow")
+        ("tkinter", "tkinter (inclus avec Python)")
     ]
     
     for module_name, pip_name in critical_deps:
         try:
-            __import__(module_name)
+            if module_name == "tkinter":
+                import tkinter
+            else:
+                __import__(module_name)
         except ImportError:
             missing_deps.append(pip_name)
     
-    # Dépendances optionnelles pour fonctionnalités avancées
+    # Dépendances optionnelles
     optional_deps = [
+        ("PIL", "Pillow"),
         ("fpdf", "fpdf2"),
-        ("fitz", "PyMuPDF"),
-        ("bs4", "beautifulsoup4"),
-        ("duckduckgo_search", "duckduckgo-search"),
-        ("odf", "odfpy"),
-        ("schedule", "schedule"),
-        ("dateparser", "dateparser"),
-        ("speech_recognition", "speechrecognition"),
-        ("pyttsx3", "pyttsx3")
+        ("pyttsx3", "pyttsx3"),
+        ("speech_recognition", "SpeechRecognition")
     ]
     
     for module_name, pip_name in optional_deps:
@@ -58,14 +56,13 @@ def check_dependencies():
         print("❌ Dépendances critiques manquantes:")
         for dep in missing_deps:
             print(f"   - {dep}")
-        print(f"\nInstallez avec: pip install {' '.join(missing_deps)}")
+        print(f"\nInstallez avec: pip install {' '.join([d for d in missing_deps if d != 'tkinter (inclus avec Python)'])}")
         return False
     
     if optional_missing:
         print("⚠️ Dépendances optionnelles manquantes (fonctionnalités limitées):")
         for dep in optional_missing:
             print(f"   - {dep}")
-        print(f"\nPour toutes les fonctionnalités: pip install {' '.join(optional_missing)}")
         print("L'assistant fonctionnera avec les fonctionnalités de base.\n")
     
     print("✅ Dépendances principales vérifiées")
@@ -87,7 +84,8 @@ def check_ollama():
                 print(f"✅ Modèle '{settings.ollama.model}' prêt")
             else:
                 print(f"⚠️ Modèle '{settings.ollama.model}' non trouvé")
-                print("Modèles disponibles:", model_names)
+                if model_names:
+                    print("Modèles disponibles:", model_names[:3])
                 print(f"Téléchargez avec: ollama pull {settings.ollama.model}")
             
             return True
@@ -106,9 +104,7 @@ def check_ollama():
 
 def setup_directories():
     """Crée les dossiers nécessaires"""
-    from src.core.enhanced_file_manager import enhanced_file_manager
-    
-    base_dir = Path(enhanced_file_manager.base_directory)
+    base_dir = Path.home() / "Documents" / "AI_Assistant_Files"
     subdirs = ["python", "html", "documents", "recherches", "backup"]
     
     for subdir in subdirs:
@@ -122,22 +118,19 @@ def show_startup_info():
     print("="*60)
     print("📎 ASSISTANT CLIPPY IA MODERNE")
     print("="*60)
-    print("🤖 Version fusionnée avec toutes les fonctionnalités")
+    print("🤖 Version simplifiée et stable")
     print("🎯 Fonctionnalités disponibles:")
     print("   • 💬 Chat intelligent avec IA")
-    print("   • 📁 Gestion avancée de fichiers")
-    print("   • 🌐 Recherche web → PDF")
-    print("   • 📄 Génération de documents")
-    print("   • 🎤 Reconnaissance vocale")
+    print("   • 📁 Gestion de fichiers")
+    print("   • 🎤 Reconnaissance vocale (si disponible)")
     print("   • 🔊 Synthèse vocale")
     print("   • 🔍 Surveillance des applications")
-    print("   • ⏰ Système de rappels")
-    print("   • 📋 Historique des commandes")
+    print("   • 📄 Génération de documents")
     print("="*60)
 
 
 def main():
-    """Fonction principale améliorée"""
+    """Fonction principale"""
     show_startup_info()
     
     print("🚀 Démarrage de Clippy...")
@@ -164,8 +157,8 @@ def main():
     print("\n🎉 Lancement de l'interface...")
     
     try:
-        # Créer et lancer la fenêtre principale améliorée
-        app = EnhancedMainWindow()
+        # Créer et lancer la fenêtre principale
+        app = MainWindow()
         app.run()
         
     except KeyboardInterrupt:

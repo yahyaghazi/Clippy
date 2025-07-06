@@ -1,5 +1,8 @@
+# === CORRECTION DU FICHIER src/config/settings.py ===
+
 """
 Configuration settings for AI Assistant
+Version corrigée pour éviter les erreurs 404
 """
 
 import os
@@ -12,24 +15,25 @@ from dataclasses import dataclass
 class OllamaConfig:
     """Configuration pour Ollama"""
     base_url: str = "http://localhost:11434"
-    model: str = "adrienbrault/nous-hermes2pro:Q3_K_M"
-    timeout: int = 60
-    max_tokens: int = 100
+    model: str = "adrienbrault/nous-hermes2pro:Q3_K_M"  # Modèle par défaut changé
+    timeout: int = 30
+    max_tokens: int = 150
     temperature: float = 0.7
 
 
 @dataclass
 class UIConfig:
     """Configuration interface utilisateur"""
-    window_width: int = 280        # Augmenté de 200 à 280
-    window_height: int = 350       # Augmenté de 250 à 350
+    window_width: int = 300
+    window_height: int = 400
     always_on_top: bool = True
     background_color: str = "#f0f0f0"
     character_size: int = 80
     
     # Position initiale (offset depuis coin bas-droit)
-    initial_x_offset: int = 300    # Augmenté pour compenser la largeur
-    initial_y_offset: int = 400    # Augmenté pour compenser la hauteur
+    initial_x_offset: int = 320
+    initial_y_offset: int = 450
+
 
 @dataclass
 class MonitoringConfig:
@@ -44,9 +48,18 @@ class MonitoringConfig:
         if self.ignored_processes is None:
             self.ignored_processes = [
                 'system', 'registry', 'csrss.exe', 'winlogon.exe',
-                'dwm.exe', 'svchost.exe', 'services.exe', 'lsass.exe',
-                'explorer.exe'  # On peut l'enlever si on veut surveiller l'explorateur
+                'dwm.exe', 'svchost.exe', 'services.exe', 'lsass.exe'
             ]
+
+
+@dataclass
+class FeaturesConfig:
+    """Configuration des fonctionnalités"""
+    enable_voice_synthesis: bool = True
+    enable_speech_recognition: bool = True
+    enable_file_management: bool = True
+    enable_web_research: bool = True
+    enable_document_generation: bool = True
 
 
 @dataclass
@@ -56,10 +69,11 @@ class AppSettings:
     ollama: OllamaConfig = None
     ui: UIConfig = None
     monitoring: MonitoringConfig = None
+    features: FeaturesConfig = None
     
     # Paramètres généraux
-    debug_mode: bool = True  # Activé par défaut pour debug
-    log_level: str = "DEBUG"
+    debug_mode: bool = False
+    log_level: str = "INFO"
     log_file: str = "ai_assistant.log"
     
     def __post_init__(self):
@@ -69,6 +83,8 @@ class AppSettings:
             self.ui = UIConfig()
         if self.monitoring is None:
             self.monitoring = MonitoringConfig()
+        if self.features is None:
+            self.features = FeaturesConfig()
 
 
 # Instance globale des paramètres
@@ -88,6 +104,9 @@ def load_settings_from_env():
     
     # Monitoring
     settings.monitoring.check_interval = int(os.getenv("MONITOR_INTERVAL", settings.monitoring.check_interval))
+    
+    # Features
+    settings.features.enable_web_research = os.getenv("ENABLE_WEB_RESEARCH", "false").lower() == "true"
     
     # Debug
     settings.debug_mode = os.getenv("DEBUG", "false").lower() == "true"

@@ -1,69 +1,35 @@
-# 📎 Assistant Clippy IA Moderne - Version Fusionnée
+# 📎 Assistant Clippy IA - Version Stable
 
-Un assistant IA local moderne inspiré de Clippy avec toutes les fonctionnalités avancées intégrées.
+Un assistant IA local moderne inspiré de Clippy avec fonctionnalités essentielles.
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-orange.svg)
 
-## ✨ Fonctionnalités Complètes
+## ✨ Fonctionnalités Principales
 
 ### 🤖 Intelligence Artificielle
 - **Assistant IA contextuel** avec suggestions selon l'application active
 - **Chat intelligent** pour conversations naturelles
-- **Gestion de fichiers IA** - création, modification, exécution
-- **Génération de code** dans plusieurs langages
+- **Gestion de fichiers IA** - création de scripts, documents, PDFs
+- **Génération de code** dans plusieurs langages (Python, HTML, JS)
 
-### 📁 Gestionnaire de Fichiers Avancé
-- **Création automatique** de scripts, documents, PDFs
-- **Résumé de documents** (PDF, Word, TXT)
-- **Recherche web → PDF** avec résumés structurés
-- **Génération de lettres** et documents professionnels
-- **Traduction et correction** de textes
-
-### 🎤 Interface Vocale
-- **Reconnaissance vocale** continue en français
+### 🎤 Interface Vocale (Optionnelle)
+- **Reconnaissance vocale** en français
 - **Synthèse vocale** avec voix française
 - **Commandes vocales** pour contrôler l'assistant
-- **Mode mains libres** complet
+- **Mode mains libres**
 
 ### 👁️ Surveillance Intelligente
 - **Détection automatique** des applications actives
 - **Suggestions contextuelles** selon votre travail
-- **Statistiques d'utilisation** des applications
 - **Monitoring non-intrusif** en arrière-plan
 
-### 🔧 Mode Avancé
-- **Panel d'outils** avec accès rapide aux fonctions
-- **Historique des commandes** avec sauvegarde
-- **Informations système** en temps réel
-- **Système de rappels** programmables
-
 ### 🎭 Personnage Clippy Animé
-- **Animations fluides** avec frames multiples
-- **Expressions contextuelles** selon l'humeur
+- **Animations fluides** selon l'humeur
+- **Expressions contextuelles**
 - **Interactions visuelles** au clic
-- **Style moderne** avec nostalgie rétro
-
-## 📸 Interface
-
-```
-┌─────────────────────┐
-│ 🤖 Assistant IA   🔊│
-├─────────────────────┤
-│                     │
-│       😊            │
-│   (Personnage)      │
-│                     │
-├─────────────────────┤
-│ 📱 Opera            │
-│ 🕒 Navigation web   │
-│                     │
-│ 💡 Essaie Ctrl+T   │
-│ pour rouvrir un     │
-│ onglet fermé !      │
-└─────────────────────┘
-```
+- **Style nostalgique** modernisé
 
 ## 🚀 Installation Rapide
 
@@ -72,178 +38,116 @@ Un assistant IA local moderne inspiré de Clippy avec toutes les fonctionnalité
 - **Ollama** installé et configuré
 - **Windows/Linux/macOS**
 
-### 1. Cloner et installer
+### 1. Installation de base
 ```bash
-git clone https://github.com/votre-repo/clippy-ai-moderne.git
-cd clippy-ai-moderne
+# Cloner le projet
+git clone https://github.com/votre-repo/clippy-ai.git
+cd clippy-ai
 
 # Environnement virtuel
 python -m venv venv
 venv\Scripts\activate  # Windows
 # source venv/bin/activate  # Linux/macOS
 
-# Dépendances complètes
+# Dépendances minimales
+pip install psutil requests
+```
+
+### 2. Installation complète (recommandée)
+```bash
+# Toutes les fonctionnalités
 pip install -r requirements.txt
 ```
 
-### 2. Configurer Ollama
+### 3. Configurer Ollama
 ```bash
-# Démarrer Ollama
+# Démarrer Ollama (terminal séparé)
 ollama serve
 
-# Télécharger les modèles (dans un autre terminal)
-ollama pull adrienbrault/nous-hermes2pro:Q3_K_M
-ollama pull deepseek-coder-v2:16b  # Optionnel pour créativité
+# Télécharger un modèle
+ollama pull llama3.2
 ```
 
-### 3. Lancer Clippy
+### 4. Lancer Clippy
 ```bash
 python main.py
 ```
 
 ## 🎮 Guide d'Utilisation
 
-### Contrôles de Base
-- **🖱️ Clic sur Clippy** → Nouveau conseil intelligent
-- **💬 Bouton Chat** → Discussion avec l'IA
-- **🎤 Microphone** → Mode vocal (reconnaissance continue)
-- **🔧 Mode Avancé** → Outils et fonctionnalités étendues
-- **🔊/🔇 Volume** → Synthèse vocale on/off
+### Interface de Base
+```
+┌─────────────────────┐
+│ 🤖 Assistant IA  🔊│ ← Barre de titre
+├─────────────────────┤
+│        😊           │ ← Clippy animé (cliquable)
+├─────────────────────┤
+│ 📱 Chrome           │
+│ 🕒 Navigation web   │ ← Info contextuelle
+│                     │
+│ 💡 Essaie Ctrl+T   │ ← Suggestion IA
+│ pour nouvel onglet  │
+└─────────────────────┘
+```
 
-### Commandes Texte/Vocales
+### Contrôles
+- **🖱️ Clic sur Clippy** → Nouveau conseil
+- **💬 Chat** → Discussion avec l'IA
+- **🎤 Microphone** → Mode vocal (si disponible)
+- **🔊/🔇** → Synthèse vocale on/off
+- **🔄** → Actualiser
+- **⚙️** → Paramètres
+
+### Commandes Chat/Vocales
 
 #### 📁 Gestion de Fichiers
 ```
-"Crée un script Python qui calcule les nombres premiers"
-"Génère une lettre de motivation pour développeur"
-"Résume le document rapport.pdf"
+"Crée un script Python qui affiche bonjour"
+"Génère un PDF sur l'intelligence artificielle"
 "Lance le fichier test"
-"Traduis ce texte : Hello world"
-```
-
-#### 🌐 Recherche Web
-```
-"Cherche des infos sur l'intelligence artificielle et fais un PDF"
-"Explique-moi la blockchain avec sources web"
-"Recherche les dernières news sur Python"
-```
-
-#### ⏰ Rappels et Organisation
-```
-"Rappelle-moi d'appeler le client demain à 14h"
-"Affiche l'historique des commandes"
+"Modifie index.html pour ajouter un menu"
 "Liste les fichiers du dossier python"
+```
+
+#### 💬 Conversation
+```
+"Comment ça va ?"
+"Explique-moi les fonctions Python"
+"Donne-moi un conseil productivité"
 ```
 
 #### 🎤 Commandes Vocales Spéciales
 ```
 "Stop" → Arrête l'écoute
 "Nouveau conseil" → Force une suggestion
-"Mode avancé" → Bascule le panel
-"Ferme Clippy" → Arrêt de l'assistant
+"Ferme assistant" → Arrêt
 ```
 
-### Fonctionnalités Avancées
-
-#### 🔧 Panel d'Outils
-- **📄 Résumer PDF** : Analyse et résume vos documents
-- **🌐 Web → PDF** : Recherche + création de rapport
-- **📝 Générer Doc** : Lettres, contrats, factures
-- **🗂️ Lister Fichiers** : Exploration des dossiers
-- **🔤 Traduire** : Traduction instantanée
-- **📋 Historique** : Dernières commandes
-
-#### 📊 Surveillance Contextuelle
-Clippy détecte automatiquement :
-- **Applications actives** (Chrome, VS Code, Word...)
-- **Contexte d'utilisation** (développement, navigation, bureautique)
-- **Suggestions personnalisées** selon l'activité
-
-### Exemples d'Usage
-
-#### 🧑‍💻 Développeur
-```
-App détectée: VS Code
-💡 "Utilise Ctrl+` pour le terminal intégré"
-
-Commande vocale: "Crée un serveur web Flask basique"
-→ Génère automatiquement le code Python
-```
-
-#### 📝 Bureautique
-```
-App détectée: Word
-💡 "F7 pour vérifier l'orthographe"
-
-Chat: "Génère une facture pour consulting informatique"
-→ Crée un document ODT professionnel
-```
-
-#### 🔍 Recherche & Documentation
-```
-Commande: "Explique-moi React et crée un PDF complet"
-→ Recherche sur le web + résumé structuré + PDF stylé
-
-Vocal: "Résume le rapport financier point PDF"
-→ Analyse automatique du document
-```
-
-## ⚙️ Configuration Avancée
+## ⚙️ Configuration
 
 ### Variables d'Environnement
-Créez un fichier `.env` :
+Créez un fichier `.env` (optionnel) :
 ```env
-# Ollama Configuration
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=adrienbrault/nous-hermes2pro:Q3_K_M
+# Ollama
+OLLAMA_MODEL=llama3.2
 OLLAMA_TIMEOUT=30
 
 # Interface
-UI_WINDOW_WIDTH=350
-UI_WINDOW_HEIGHT=450
+UI_WINDOW_WIDTH=300
+UI_WINDOW_HEIGHT=400
 DEBUG=false
 
-# Monitoring
-MONITOR_INTERVAL=5
-
-# Fonctionnalités avancées
-ENABLE_WEB_SCRAPING=true
-ENABLE_DOCUMENT_GENERATION=true
-ENABLE_VOICE_RECOGNITION=true
-```
-
-### Personnalisation du Dossier de Travail
-```python
-# Dans enhanced_file_manager.py
-DOSSIER_BASE = r"C:\MonDossier\ClippyFiles"
+# Fonctionnalités
+ENABLE_WEB_RESEARCH=false
 ```
 
 ### Modèles IA Recommandés
 | Usage | Modèle | Taille | Performance |
 |-------|--------|--------|-------------|
-| **Général** | `adrienbrault/nous-hermes2pro:Q3_K_M` | ~4GB | Équilibré |
-| **Code** | `deepseek-coder-v2:16b` | ~8GB | Spécialisé |
-| **Léger** | `llama3.2:3b` | ~2GB | Rapide |
-| **Français** | `vigostral-7b-chat` | ~4GB | Optimisé FR |
-
-## 🎨 Personnalisation Clippy
-
-### Images d'Animation
-Placez dans le dossier de base :
-- `clippy.jpg` - Image principale
-- `frame1.png`, `frame2.png`, `frame3.png` - Frames d'animation
-- `background.png` - Arrière-plan (optionnel)
-
-### Humeurs du Personnage
-```python
-# Dans character.py - Nouvelles humeurs
-"excited": {
-    "eye_shape": "sparkle",
-    "mouth_shape": "big_smile", 
-    "body_color": "#FFD700",
-    "animation": "bounce"
-}
-```
+| **Général** | `llama3.2` | ~2GB | Rapide |
+| **Français** | `llama3.2` | ~2GB | Bon français |
+| **Code** | `codellama` | ~4GB | Spécialisé |
+| **Léger** | `llama3.2:1b` | ~1GB | Très rapide |
 
 ## 🔧 Résolution de Problèmes
 
@@ -251,14 +155,14 @@ Placez dans le dossier de base :
 
 #### "Ollama non connecté"
 ```bash
-# Démarrer Ollama
+# Vérifier Ollama
 ollama serve
 
-# Tester la connexion
+# Tester
 curl http://localhost:11434/api/tags
 
-# Vérifier les modèles
-ollama list
+# Télécharger un modèle
+ollama pull llama3.2
 ```
 
 #### "Microphone non disponible"
@@ -267,121 +171,224 @@ ollama list
 pip install pyaudio
 
 # Linux
-sudo apt install portaudio19-dev python3-pyaudio
+sudo apt install python3-pyaudio portaudio19-dev
 
 # macOS
 brew install portaudio
 ```
 
-#### "Fonctionnalités avancées limitées"
+#### "Module X non trouvé"
 ```bash
-# Installer toutes les dépendances optionnelles
-pip install fpdf2 PyMuPDF beautifulsoup4 duckduckgo-search
-pip install odfpy schedule dateparser
+# Réinstaller les dépendances
+pip install -r requirements.txt
+
+# Ou installation minimale
+pip install psutil requests
 ```
 
-#### "Images Clippy manquantes"
-1. Téléchargez les images depuis le dossier `assets/`
-2. Placez-les dans `Documents/AI_Assistant_Files/`
-3. Redémarrez Clippy
+#### Fenêtre invisible
+- Vérifier la barre des tâches
+- Alt+Tab pour voir toutes les fenêtres
+- Redémarrer l'assistant
 
 ### Mode Debug
 ```bash
-# Lancer avec debug complet
+# Activer les logs détaillés
 DEBUG=true python main.py
 ```
 
-### Logs Détaillés
-```bash
-# Voir les logs en temps réel
-tail -f ai_assistant.log
+## 📋 Fonctionnalités par Dépendance
+
+### Installation Minimale (`psutil requests`)
+- ✅ Surveillance des applications
+- ✅ Suggestions IA contextuelles
+- ✅ Chat intelligent
+- ✅ Interface graphique
+- ❌ Synthèse vocale
+- ❌ Reconnaissance vocale
+- ❌ Génération PDF
+
+### Installation Complète (toutes dépendances)
+- ✅ Toutes les fonctionnalités ci-dessus
+- ✅ Synthèse vocale française
+- ✅ Reconnaissance vocale
+- ✅ Génération PDF/documents
+- ✅ Clippy animé avec images
+
+## 🏗️ Structure du Projet
+
+```
+clippy-ai/
+├── src/
+│   ├── core/
+│   │   ├── ollama_client.py        # Client IA
+│   │   ├── system_monitor.py       # Surveillance
+│   │   └── file_manager.py         # Gestion fichiers
+│   ├── ui/
+│   │   ├── main_window.py          # Interface principale
+│   │   ├── character.py            # Personnage Clippy
+│   │   ├── speech_bubble.py        # Bulles dialogue
+│   │   └── chat_widget.py          # Widget chat
+│   ├── utils/
+│   │   ├── voice_engine.py         # Synthèse vocale
+│   │   ├── speech_recognition_engine.py # Reconnaissance
+│   │   ├── app_mapper.py           # Mapping applications
+│   │   └── logger.py               # Logs
+│   └── config/
+│       └── settings.py             # Configuration
+├── main.py                         # Point d'entrée
+├── requirements.txt                # Dépendances
+└── README.md                       # Documentation
 ```
 
-## 📊 Statistiques et Monitoring
+## 🎯 Utilisation Avancée
 
-### Panel Informations Système
-En mode avancé, Clippy affiche :
-- **Utilisation CPU/RAM** en temps réel
-- **Applications les plus utilisées** avec durée
-- **Statut des services** (IA, microphone, etc.)
-- **Espace disque** du dossier de travail
+### Personnalisation des Suggestions
+L'IA s'adapte automatiquement selon l'application :
 
-### Historique Intelligent
-- **Sauvegarde automatique** de toutes les commandes
-- **Recherche** dans l'historique
-- **Statistiques d'usage** par fonctionnalité
-- **Export** des données en JSON
-
-## 🚀 Utilisation Avancée
-
-### Automatisation avec Rappels
-```python
-# Programmation de tâches récurrentes
-"Rappelle-moi de faire les sauvegardes tous les vendredis à 17h"
-"Alerte-moi dans 2 heures pour la réunion"
+#### 🌐 Navigateurs (Chrome, Firefox, Edge)
+```
+💡 "Essaie Ctrl+Shift+T pour rouvrir un onglet fermé"
+💡 "Utilise Ctrl+L pour aller à la barre d'adresse"
+💡 "F12 pour ouvrir les outils de développeur"
 ```
 
-### Intégration dans Workflows
-```bash
-# Utilisation en ligne de commande
-python -c "from src.core.enhanced_file_manager import enhanced_file_manager; print(enhanced_file_manager.process_command('liste les fichiers python'))"
+#### 💻 Développement (VS Code, IDEs)
+```
+💡 "Ctrl+Shift+P pour la palette de commandes"
+💡 "Ctrl+` pour ouvrir le terminal intégré"
+💡 "F5 pour déboguer ton code"
 ```
 
-### API et Extensions
-```python
-# Ajouter de nouvelles commandes
-def custom_action(instruction: str) -> str:
-    # Votre logique personnalisée
-    return "Action personnalisée exécutée"
-
-# Intégrer dans le gestionnaire
-enhanced_file_manager.custom_actions["ma_commande"] = custom_action
+#### 📝 Bureautique (Word, Excel)
 ```
+💡 "Ctrl+S pour sauvegarder régulièrement"
+💡 "F7 pour vérifier l'orthographe"
+💡 "Ctrl+Z pour annuler la dernière action"
+```
+
+### Génération de Fichiers
+
+#### Scripts Python
+```
+Chat: "Crée un script qui lit un CSV"
+→ Génère automatiquement un script Python complet
+
+Chat: "Modifie le script pour ajouter des graphiques"
+→ Met à jour le code existant
+```
+
+#### Pages Web
+```
+Chat: "Crée une page HTML avec menu de navigation"
+→ Génère HTML/CSS complet
+
+Chat: "Ajoute un formulaire de contact"
+→ Enrichit la page existante
+```
+
+#### Rapports PDF
+```
+Chat: "Génère un PDF sur la cybersécurité"
+→ Recherche + rédaction + PDF stylé
+
+Chat: "Crée un rapport sur Python"
+→ Guide complet avec exemples
+```
+
+## 🔐 Sécurité et Vie Privée
+
+### Données Locales
+- ✅ **Tout fonctionne en local** - aucune donnée envoyée à des serveurs externes
+- ✅ **Ollama local** - l'IA tourne sur votre machine
+- ✅ **Fichiers locaux** - création dans vos dossiers
+- ✅ **Pas de télémétrie** - aucun tracking
+
+### Permissions Requises
+- **Lecture processus** - pour détecter l'application active
+- **Création fichiers** - dans le dossier Documents/AI_Assistant_Files
+- **Microphone** - seulement si reconnaissance vocale activée
+- **Réseau local** - communication avec Ollama (localhost:11434)
+
+## 🚀 Performance et Optimisation
+
+### Ressources Système
+- **RAM** : ~50-100MB pour l'interface
+- **CPU** : Minimal (surveillance passive)
+- **Réseau** : Aucun (sauf Ollama local)
+- **Stockage** : ~10MB + modèles Ollama
+
+### Optimisations
+- **Surveillance efficace** - vérification toutes les 5 secondes
+- **Thread séparés** - UI responsive
+- **Cache intelligent** - évite les requêtes répétitives
+- **Gestion mémoire** - nettoyage automatique
 
 ## 🤝 Contribution et Développement
 
-### Structure du Code Fusionné
-```
-clippy-ai-moderne/
-├── src/
-│   ├── core/
-│   │   ├── enhanced_file_manager.py    # 🆕 Gestionnaire unifié
-│   │   ├── ollama_client.py            # Client IA
-│   │   └── system_monitor.py           # Surveillance
-│   ├── ui/
-│   │   ├── enhanced_main_window.py     # 🆕 Interface complète
-│   │   ├── character.py                # Personnage Clippy
-│   │   ├── speech_bubble.py            # Bulles dialogue
-│   │   └── chat_widget.py              # Widget chat
-│   ├── utils/
-│   │   ├── voice_engine.py             # Synthèse vocale
-│   │   ├── speech_recognition_engine.py # Reconnaissance
-│   │   └── app_mapper.py               # Mapping applications
-│   └── config/
-│       └── settings.py                 # Configuration
-├── main.py                             # 🆕 Lanceur unifié
-├── requirements.txt                    # 🆕 Dépendances complètes
-└── README.md                           # 🆕 Documentation fusionnée
+### Ajouter de Nouvelles Applications
+```python
+# Dans src/utils/app_mapper.py
+self.app_names.update({
+    'mon_app.exe': 'Mon Application',
+    'autre_app.exe': 'Autre App'
+})
 ```
 
-### Fonctionnalités Fusionnées
-✅ **Interface moderne** avec Tkinter stylé  
-✅ **Gestionnaire de fichiers** avec IA complète  
-✅ **Web scraping** → PDF automatique  
-✅ **Génération de documents** professionnels  
-✅ **Reconnaissance/synthèse vocale** française  
-✅ **Système de rappels** programmables  
-✅ **Historique intelligent** avec sauvegarde  
-✅ **Mode avancé** avec outils étendus  
-✅ **Animation Clippy** avec frames multiples  
-✅ **Surveillance contextuelle** des applications  
+### Nouveaux Types de Fichiers
+```python
+# Dans src/core/file_manager.py
+def _generate_basic_code(self, instruction: str, file_type: str) -> str:
+    if file_type.lower() == "mon_type":
+        return "# Template pour mon type"
+```
 
-### Guidelines de Contribution
-1. **Fork** le projet
-2. **Créer** une branche feature
-3. **Tester** avec toutes les dépendances
-4. **Documenter** les nouvelles fonctionnalités
-5. **Soumettre** une Pull Request
+### Personnaliser les Suggestions IA
+```python
+# Dans src/core/ollama_client.py
+def _create_contextual_prompt(self, app_name: str, context: str, category: str) -> str:
+    if app_name == "MonApp":
+        return "Prompt spécialisé pour MonApp..."
+```
+
+## 📈 Roadmap et Améliorations
+
+### Version 1.1 (Prochaine)
+- [ ] Interface sombre/claire
+- [ ] Raccourcis clavier globaux
+- [ ] Historique des suggestions
+- [ ] Notifications système
+
+### Version 1.2 (Future)
+- [ ] Plugins tiers
+- [ ] API REST locale
+- [ ] Support multi-langues
+- [ ] Thèmes personnalisés
+
+### Contributions Bienvenues
+- 🐛 **Bug reports** - Issues GitHub
+- 💡 **Suggestions** - Discussions
+- 🔧 **Pull Requests** - Améliorations
+- 📖 **Documentation** - Guides d'usage
+
+## 📞 Support et Communauté
+
+### Obtenir de l'Aide
+1. **README** - Documentation complète
+2. **Issues GitHub** - Problèmes techniques
+3. **Discussions** - Questions générales
+
+### Signaler un Bug
+Incluez dans votre rapport :
+- OS et version Python
+- Logs d'erreur complets
+- Étapes pour reproduire
+- Configuration Ollama
+
+### Proposer une Fonctionnalité
+- Décrivez l'usage prévu
+- Justifiez la valeur ajoutée
+- Proposez une implémentation
 
 ## 📄 Licence et Crédits
 
@@ -389,18 +396,18 @@ clippy-ai-moderne/
 Ce projet est sous licence MIT - voir [LICENSE](LICENSE) pour détails.
 
 ### Remerciements
-- **Microsoft Clippy** pour l'inspiration originale 📎
-- **Ollama** pour l'IA locale accessible
-- **Communauté Python** pour les excellentes bibliothèques
-- **Tous les contributeurs** qui ont aidé à fusionner les fonctionnalités
+- **Microsoft Clippy** - Inspiration originale 📎
+- **Ollama** - IA locale accessible
+- **Communauté Python** - Écosystème fantastique
+- **Contributeurs** - Améliorations continues
 
 ### Versions
-- **v1.0** - Assistant IA de base avec surveillance
-- **v1.5** - Ajout chat et reconnaissance vocale  
-- **v2.0** - 🆕 **Version fusionnée complète** avec toutes les fonctionnalités Clippy
+- **v1.0** - Version stable avec fonctionnalités essentielles
+- **v0.9** - Version bêta avec toutes les fonctionnalités
+- **v0.5** - Prototype initial
 
 ---
 
-**📎 Clippy IA Moderne - L'assistant qui vous accompagne vraiment !** 🚀
+**📎 Développé avec ❤️ pour la productivité moderne**
 
-*Développé avec ❤️ pour la productivité moderne*
+*Assistant IA local, privé et personnalisable pour tous*
