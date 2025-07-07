@@ -15,10 +15,10 @@ from dataclasses import dataclass
 class OllamaConfig:
     """Configuration pour Ollama"""
     base_url: str = "http://localhost:11434"
-    model: str = "adrienbrault/nous-hermes2pro:Q3_K_M"  # Modèle par défaut changé
-    timeout: int = 30
-    max_tokens: int = 150
-    temperature: float = 0.7
+    model: str = "mistral:latest"  # Modèle par défaut changé
+    timeout: int = 60  # Timeout en secondes
+    max_tokens: int = 1000  # Nombre de jetons maximum
+    temperature: float = 0.7 # Température pour la génération de texte
 
 
 @dataclass

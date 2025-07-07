@@ -1,6 +1,5 @@
 """
-Gestionnaire de fichiers avec IA pour l'Assistant
-Version simplifiée et stable
+Gestionnaire de fichiers avec IA et exécution - VERSION COMPLÈTE
 """
 
 import os
@@ -8,19 +7,212 @@ import json
 import shutil
 import re
 import subprocess
+import sys
+import threading
+import time
 from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 import requests
 from datetime import datetime
-from bs4 import BeautifulSoup
-from urllib.parse import quote
-import time
 
 from ..config.settings import settings
 
 
+class CodeExecutor:
+    """Gestionnaire d'exécution de code sécurisé"""
+    
+    def __init__(self, base_directory: str):
+        self.base_directory = base_directory
+        self.running_processes = {}
+        
+    def execute_file(self, file_path: str) -> str:
+        """Exécute un fichier selon son type"""
+        if not os.path.exists(file_path):
+            return f"❌ Fichier non trouvé: {file_path}"
+        
+        # Vérifications de sécurité
+        security_check = self._security_check(file_path)
+        if security_check:
+            return security_check
+        
+        file_ext = Path(file_path).suffix.lower()
+        filename = os.path.basename(file_path)
+        
+        print(f"[EXECUTOR] 🚀 Exécution de {filename} (type: {file_ext})")
+        
+        try:
+            if file_ext == '.py':
+                return self._execute_python(file_path)
+            elif file_ext == '.js':
+                return self._execute_javascript(file_path)
+            elif file_ext == '.html':
+                return self._open_in_browser(file_path)
+            elif file_ext == '.bat':
+                return self._execute_batch(file_path)
+            elif file_ext in ['.txt', '.md']:
+                return self._open_in_editor(file_path)
+            else:
+                return self._open_with_system(file_path)
+                
+        except Exception as e:
+            return f"❌ Erreur d'exécution: {str(e)}"
+    
+    def _security_check(self, file_path: str) -> str:
+        """Vérifications de sécurité avant exécution"""
+        # Vérifier que le fichier est dans notre dossier autorisé
+        try:
+            file_path_resolved = Path(file_path).resolve()
+            base_path_resolved = Path(self.base_directory).resolve()
+            
+            if not str(file_path_resolved).startswith(str(base_path_resolved)):
+                return "❌ Erreur de sécurité: fichier hors du dossier autorisé"
+        except Exception:
+            return "❌ Erreur de sécurité: chemin invalide"
+        
+        # Vérifier la taille du fichier (max 5MB)
+        try:
+            file_size = os.path.getsize(file_path)
+            if file_size > 5 * 1024 * 1024:  # 5MB
+                return "❌ Fichier trop volumineux (max 5MB)"
+        except Exception:
+            return "❌ Impossible de lire le fichier"
+        
+        return ""  # Pas d'erreur de sécurité
+    
+    def _execute_python(self, file_path: str) -> str:
+        """Exécute un script Python"""
+        try:
+            # Utiliser le même interpréteur Python
+            python_exe = sys.executable
+            
+            # Exécuter dans un processus séparé avec timeout
+            result = subprocess.run(
+                [python_exe, file_path],
+                capture_output=True,
+                text=True,
+                timeout=30,  # Timeout de 30 secondes
+                cwd=os.path.dirname(file_path)
+            )
+            
+            output_parts = []
+            
+            if result.stdout:
+                output_parts.append(f"📤 Sortie du programme:\n{result.stdout}")
+            
+            if result.stderr:
+                output_parts.append(f"⚠️ Messages d'erreur:\n{result.stderr}")
+            
+            if result.returncode == 0:
+                if output_parts:
+                    return f"✅ Script Python exécuté avec succès!\n\n" + "\n\n".join(output_parts)
+                else:
+                    return "✅ Script Python exécuté avec succès! (aucune sortie)"
+            else:
+                return f"❌ Erreur d'exécution (code {result.returncode}):\n" + "\n".join(output_parts)
+                
+        except subprocess.TimeoutExpired:
+            return "⏱️ Timeout: Le script a pris trop de temps (>30s)"
+        except FileNotFoundError:
+            return "❌ Python non trouvé sur le système"
+        except Exception as e:
+            return f"❌ Erreur d'exécution: {str(e)}"
+    
+    def _execute_javascript(self, file_path: str) -> str:
+        """Exécute un script JavaScript avec Node.js"""
+        try:
+            # Essayer avec Node.js
+            result = subprocess.run(
+                ['node', file_path],
+                capture_output=True,
+                text=True,
+                timeout=20,
+                cwd=os.path.dirname(file_path)
+            )
+            
+            if result.returncode == 0:
+                output = result.stdout if result.stdout else "Script exécuté sans sortie"
+                return f"✅ Script JavaScript exécuté!\n\n📤 Sortie:\n{output}"
+            else:
+                return f"❌ Erreur JavaScript:\n{result.stderr}"
+                
+        except FileNotFoundError:
+            # Si Node.js n'est pas installé, ouvrir dans le navigateur
+            return self._open_in_browser(file_path)
+        except subprocess.TimeoutExpired:
+            return "⏱️ Timeout JavaScript"
+        except Exception as e:
+            return f"❌ Erreur: {str(e)}"
+    
+    def _open_in_browser(self, file_path: str) -> str:
+        """Ouvre un fichier HTML dans le navigateur"""
+        try:
+            if os.name == 'nt':  # Windows
+                os.startfile(file_path)
+            elif os.name == 'posix':  # Linux/Mac
+                subprocess.Popen(['xdg-open', file_path])
+            
+            return f"✅ Fichier ouvert dans le navigateur:\n📄 {os.path.basename(file_path)}"
+            
+        except Exception as e:
+            return f"❌ Impossible d'ouvrir le navigateur: {str(e)}"
+    
+    def _execute_batch(self, file_path: str) -> str:
+        """Exécute un fichier batch (.bat)"""
+        try:
+            result = subprocess.run(
+                [file_path],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                shell=True,
+                cwd=os.path.dirname(file_path)
+            )
+            
+            output = ""
+            if result.stdout:
+                output += f"📤 Sortie:\n{result.stdout}"
+            if result.stderr:
+                output += f"\n⚠️ Erreurs:\n{result.stderr}"
+            
+            if result.returncode == 0:
+                return f"✅ Script Batch exécuté!\n\n{output}"
+            else:
+                return f"❌ Erreur Batch (code {result.returncode}):\n{output}"
+                
+        except subprocess.TimeoutExpired:
+            return "⏱️ Timeout Batch"
+        except Exception as e:
+            return f"❌ Erreur Batch: {str(e)}"
+    
+    def _open_in_editor(self, file_path: str) -> str:
+        """Ouvre un fichier texte dans l'éditeur par défaut"""
+        try:
+            if os.name == 'nt':  # Windows
+                os.startfile(file_path)
+            else:  # Linux/Mac
+                subprocess.Popen(['xdg-open', file_path])
+            
+            return f"✅ Fichier ouvert dans l'éditeur:\n📄 {os.path.basename(file_path)}"
+            
+        except Exception as e:
+            return f"❌ Impossible d'ouvrir l'éditeur: {str(e)}"
+    
+    def _open_with_system(self, file_path: str) -> str:
+        """Ouvre un fichier avec l'application système par défaut"""
+        try:
+            if os.name == 'nt':  # Windows
+                os.startfile(file_path)
+            else:  # Linux/Mac
+                subprocess.Popen(['xdg-open', file_path])
+            
+            return f"✅ Fichier ouvert avec l'application par défaut:\n📄 {os.path.basename(file_path)}"
+            
+        except Exception as e:
+            return f"❌ Impossible d'ouvrir le fichier: {str(e)}"
+
+
 class FileManager:
-    """Gestionnaire de fichiers intelligent avec IA"""
+    """Gestionnaire de fichiers intelligent avec IA et exécution"""
     
     def __init__(self, base_directory: str = None):
         self.base_directory = base_directory or str(Path.home() / "Documents" / "AI_Assistant_Files")
@@ -30,48 +222,187 @@ class FileManager:
         # Créer le dossier de base s'il n'existe pas
         Path(self.base_directory).mkdir(parents=True, exist_ok=True)
         
-        print(f"[FILE_MANAGER] Dossier de base: {self.base_directory}")
+        # Initialiser l'exécuteur
+        self.executor = CodeExecutor(self.base_directory)
         
+        print(f"[FILE_MANAGER] Dossier de base: {self.base_directory}")
+        print(f"[FILE_MANAGER] Exécuteur de code initialisé")
+    
     def analyze_command(self, command: str) -> Optional[Dict[str, Any]]:
-        """Analyse une commande en langage naturel avec l'IA"""
+        """Analyse une commande en langage naturel avec détection d'exécution"""
+        
+        command_lower = command.lower()
+        
+        # 🔍 DÉTECTION DES COMMANDES D'EXÉCUTION
+        execution_keywords = [
+            "lance", "lancer", "exécute", "execute", "démarre", "demarrer", 
+            "run", "ouvre", "ouvrir", "joue", "jouer", "teste", "tester"
+        ]
+        
+        creation_keywords = [
+            "crée", "créer", "génère", "générer", "écris", "fais", "code", "programme"
+        ]
+        
+        # Détecter : "crée X et lance-le" ou "fais X et exécute"
+        if any(create in command_lower for create in creation_keywords) and \
+           any(execute in command_lower for execute in execution_keywords):
+            return self._parse_create_and_run_command(command)
+        
+        # Détecter : "lance le fichier X" ou "exécute X"
+        elif any(execute in command_lower for execute in execution_keywords):
+            return self._parse_execution_command(command)
+        
+        # Commande de création simple
+        elif any(create in command_lower for create in creation_keywords):
+            return self._parse_creation_command(command)
+        
+        # Fallback vers l'analyse IA
+        return self._analyze_with_ai(command)
+    
+    def _parse_create_and_run_command(self, command: str) -> Dict[str, Any]:
+        """Parse une commande de création + exécution"""
+        print("[FILE_MANAGER] 🔄 Commande création + exécution détectée")
+        
+        # Extraire la partie création (avant "et")
+        if " et " in command.lower():
+            creation_part = command.lower().split(" et ")[0]
+        else:
+            creation_part = command
+        
+        # Analyser la partie création
+        creation_json = self._parse_creation_command(creation_part)
+        if creation_json:
+            creation_json["action"] = "creer_et_executer"
+            return creation_json
+        
+        # Fallback
+        return {
+            "action": "creer_et_executer",
+            "fichier": "script.py",
+            "instruction": command,
+            "type_fichier": "py",
+            "chemin": "python"
+        }
+    
+    def _parse_execution_command(self, command: str) -> Dict[str, Any]:
+        """Parse une commande d'exécution"""
+        print("[FILE_MANAGER] ▶️ Commande d'exécution détectée")
+        
+        # Patterns pour extraire le nom de fichier
+        patterns = [
+            r"(?:lance|exécute|ouvre|démarre|run|teste)\s+(?:le\s+fichier\s+)?([a-zA-Z0-9_.-]+)",
+            r"(?:lance|exécute|ouvre|démarre|run|teste)\s+([a-zA-Z0-9_.-]+)",
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, command.lower())
+            if match:
+                fichier = match.group(1)
+                return {
+                    "action": "lancer",
+                    "fichier": fichier,
+                    "instruction": "",
+                    "type_fichier": "",
+                    "chemin": ""
+                }
+        
+        # Chercher un nom de fichier dans la commande
+        words = command.split()
+        for word in words:
+            if "." in word and not word.startswith("http"):  # Probablement un nom de fichier
+                return {
+                    "action": "lancer",
+                    "fichier": word,
+                    "instruction": "",
+                    "type_fichier": "",
+                    "chemin": ""
+                }
+        
+        # Fallback - chercher le dernier mot comme nom de fichier
+        return {
+            "action": "lancer",
+            "fichier": words[-1] if words else "script",
+            "instruction": "",
+            "type_fichier": "",
+            "chemin": ""
+        }
+    
+    def _parse_creation_command(self, command: str) -> Dict[str, Any]:
+        """Parse une commande de création"""
+        command_lower = command.lower()
+        
+        # Déterminer le type de fichier
+        if "python" in command_lower or ".py" in command_lower:
+            file_type = "py"
+            default_name = "script.py"
+            default_path = "python"
+        elif "html" in command_lower or "web" in command_lower or "page" in command_lower:
+            file_type = "html"
+            default_name = "page.html"
+            default_path = "html"
+        elif "javascript" in command_lower or ".js" in command_lower:
+            file_type = "js"
+            default_name = "script.js"
+            default_path = "javascript"
+        elif "pdf" in command_lower or "rapport" in command_lower:
+            file_type = "pdf"
+            default_name = "rapport.pdf"
+            default_path = "documents"
+        else:
+            file_type = "py"  # Par défaut Python
+            default_name = "script.py"
+            default_path = "python"
+        
+        # Extraire un nom de fichier potentiel
+        filename = self._extract_filename_from_command(command, file_type)
+        if not filename:
+            filename = default_name
+        
+        return {
+            "action": "generer_pdf" if file_type == "pdf" else "creer",
+            "fichier": filename,
+            "instruction": command,
+            "type_fichier": file_type,
+            "chemin": default_path
+        }
+    
+    def _extract_filename_from_command(self, command: str, file_type: str) -> Optional[str]:
+        """Extrait un nom de fichier potentiel de la commande"""
+        # Mots-clés qui peuvent indiquer un nom
+        keywords = ["fibonacci", "calculatrice", "jeu", "test", "exemple", "demo"]
+        
+        command_lower = command.lower()
+        for keyword in keywords:
+            if keyword in command_lower:
+                return f"{keyword}.{file_type}"
+        
+        return None
+    
+    def _analyze_with_ai(self, command: str) -> Optional[Dict[str, Any]]:
+        """Analyse avec l'IA comme fallback"""
         prompt = f"""
-Tu es un assistant IA spécialisé dans la gestion de fichiers. Analyse cette commande en français et retourne un JSON structuré.
+Analyse cette commande et réponds avec un JSON valide :
 
-Actions possibles :
-- "creer" : créer un nouveau fichier avec du contenu
-- "modifier_code" : modifier le code d'un fichier existant
-- "lancer" : ouvrir/exécuter un fichier
-- "deplacer" : déplacer un fichier
-- "supprimer" : supprimer un fichier
-- "lister" : lister les fichiers
-- "generer_pdf" : créer un rapport PDF sur un sujet
+Commande: "{command}"
 
-Format de réponse JSON requis :
+Actions possibles: "creer", "lancer", "modifier_code", "supprimer", "lister", "generer_pdf", "creer_et_executer"
+
+Format JSON uniquement:
 {{
     "action": "action_choisie",
-    "fichier": "nom_du_fichier.extension",
-    "chemin": "dossier_destination",
-    "instruction": "contenu_ou_sujet_a_traiter",
-    "type_fichier": "extension"
+    "fichier": "nom_fichier.ext",
+    "chemin": "dossier",
+    "instruction": "description",
+    "type_fichier": "py|html|js|txt"
 }}
 
-⚠️ Réponds UNIQUEMENT avec le JSON, aucune explication.
+JSON:"""
 
-Exemples :
-- "crée un script python qui affiche bonjour" → {{"action": "creer", "fichier": "bonjour.py", "chemin": "python", "instruction": "script qui affiche bonjour monde", "type_fichier": "py"}}
-- "génère un PDF sur l'intelligence artificielle" → {{"action": "generer_pdf", "fichier": "rapport_ia.pdf", "chemin": "documents", "instruction": "intelligence artificielle", "type_fichier": "pdf"}}
-- "lance le fichier test" → {{"action": "lancer", "fichier": "test", "chemin": "", "instruction": "", "type_fichier": ""}}
-
-Commande à analyser : {command}
-"""
-        
         try:
-            # Utiliser le client Ollama existant
-            from .ollama_client import OllamaClient
+            from ..core.ollama_client import OllamaClient
             ollama = OllamaClient()
             
             if not ollama.available:
-                print("[FILE_MANAGER] Ollama non disponible - analyse basique")
                 return self._basic_analysis(command)
             
             response = requests.post(
@@ -80,10 +411,7 @@ Commande à analyser : {command}
                     "model": ollama.model,
                     "prompt": prompt,
                     "stream": False,
-                    "options": {
-                        "temperature": 0.2,  # Plus déterministe
-                        "num_predict": 150
-                    }
+                    "options": {"temperature": 0.1, "num_predict": 100}
                 },
                 timeout=15
             )
@@ -91,88 +419,50 @@ Commande à analyser : {command}
             if response.status_code == 200:
                 result = response.json()
                 text = result.get("response", "").strip()
-                parsed = self._extract_json(text)
-                return parsed if parsed else self._basic_analysis(command)
-            else:
-                print(f"[FILE_MANAGER] Erreur API: {response.status_code}")
-                return self._basic_analysis(command)
+                return self._extract_json(text)
                 
         except Exception as e:
-            print(f"[FILE_MANAGER] Erreur analyse: {e}")
-            return self._basic_analysis(command)
+            print(f"[FILE_MANAGER] Erreur analyse IA: {e}")
+        
+        return self._basic_analysis(command)
     
     def _basic_analysis(self, command: str) -> Dict[str, Any]:
         """Analyse basique sans IA"""
         command_lower = command.lower()
         
-        # Détection par mots-clés
-        if any(word in command_lower for word in ["crée", "créer", "génère", "nouveau"]):
-            if "pdf" in command_lower or "rapport" in command_lower:
-                return {
-                    "action": "generer_pdf",
-                    "fichier": "rapport.pdf",
-                    "chemin": "documents",
-                    "instruction": command,
-                    "type_fichier": "pdf"
-                }
-            elif "python" in command_lower or ".py" in command_lower:
-                return {
-                    "action": "creer",
-                    "fichier": "script.py",
-                    "chemin": "python",
-                    "instruction": command,
-                    "type_fichier": "py"
-                }
-            elif "html" in command_lower:
-                return {
-                    "action": "creer",
-                    "fichier": "page.html",
-                    "chemin": "html",
-                    "instruction": command,
-                    "type_fichier": "html"
-                }
-        
-        elif any(word in command_lower for word in ["lance", "ouvre", "exécute"]):
-            # Extraire le nom de fichier
-            words = command.split()
-            filename = words[-1] if words else "fichier"
+        if "python" in command_lower:
             return {
-                "action": "lancer",
-                "fichier": filename,
-                "chemin": "",
-                "instruction": "",
-                "type_fichier": ""
+                "action": "creer",
+                "fichier": "script.py",
+                "chemin": "python",
+                "instruction": command,
+                "type_fichier": "py"
             }
-        
-        elif any(word in command_lower for word in ["liste", "affiche"]):
+        elif "html" in command_lower:
             return {
-                "action": "lister",
-                "fichier": "",
-                "chemin": "",
-                "instruction": "",
-                "type_fichier": ""
+                "action": "creer",
+                "fichier": "page.html",
+                "chemin": "html", 
+                "instruction": command,
+                "type_fichier": "html"
             }
-        
-        # Par défaut
-        return {
-            "action": "creer",
-            "fichier": "document.txt",
-            "chemin": "",
-            "instruction": command,
-            "type_fichier": "txt"
-        }
+        else:
+            return {
+                "action": "creer",
+                "fichier": "document.txt",
+                "chemin": "",
+                "instruction": command,
+                "type_fichier": "txt"
+            }
     
     def _extract_json(self, text: str) -> Optional[Dict[str, Any]]:
-        """Extrait le JSON de la réponse de l'IA"""
+        """Extrait le JSON de la réponse"""
         try:
-            # Chercher le JSON dans le texte
             match = re.search(r'\{[^}]+\}', text)
             if match:
-                json_str = match.group(0)
-                return json.loads(json_str)
-        except json.JSONDecodeError as e:
-            print(f"[FILE_MANAGER] JSON mal formé: {e}")
-        
+                return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            pass
         return None
     
     def find_file(self, logical_name: str) -> Optional[str]:
@@ -180,53 +470,41 @@ Commande à analyser : {command}
         if not logical_name:
             return None
         
-        # Mots-clés de recherche
-        keywords = logical_name.lower().split()
+        # Nettoyer le nom de recherche
+        search_terms = logical_name.lower().replace('.py', '').replace('.html', '').replace('.js', '').split()
+        
         candidates = []
         
         # Parcourir récursivement le dossier de base
         for root, dirs, files in os.walk(self.base_directory):
             for file in files:
                 file_lower = file.lower()
-                # Vérifier si tous les mots-clés sont dans le nom de fichier
-                if all(keyword in file_lower for keyword in keywords):
+                
+                # Correspondance exacte
+                if logical_name.lower() == file_lower:
+                    return os.path.join(root, file)
+                
+                # Correspondance partielle avec tous les termes
+                if all(term in file_lower for term in search_terms):
                     candidates.append(os.path.join(root, file))
         
+        # Retourner le premier candidat trouvé
         return candidates[0] if candidates else None
     
     def generate_code(self, instruction: str, file_type: str = "") -> Optional[str]:
-        """Génère du code avec l'IA selon les instructions"""
-        language_hints = {
-            "py": "Python",
-            "js": "JavaScript", 
-            "html": "HTML",
-            "css": "CSS",
-            "java": "Java",
-            "cpp": "C++"
-        }
+        """Génère du code avec l'IA - VERSION UNIVERSELLE"""
+        print(f"[FILE_MANAGER] 🤖 Génération de code: {instruction} (type: {file_type})")
         
-        language = language_hints.get(file_type.lower(), "")
-        
-        prompt = f"""
-Génère UNIQUEMENT le code pour cette demande, sans explication :
-
-Demande : {instruction}
-Langage : {language}
-
-IMPORTANT :
-- Réponds SEULEMENT avec le code
-- Pas d'explication avant ou après
-- Pas de balises markdown
-- Code prêt à utiliser
-
-Code :"""
-
         try:
-            from .ollama_client import OllamaClient
+            from ..core.ollama_client import OllamaClient
             ollama = OllamaClient()
             
             if not ollama.available:
-                return self._generate_basic_code(instruction, file_type)
+                print("[FILE_MANAGER] ❌ Ollama non disponible")
+                return self._generate_minimal_fallback(instruction, file_type)
+            
+            # Prompt universel optimisé
+            prompt = self._create_universal_prompt(instruction, file_type)
             
             response = requests.post(
                 f"{ollama.base_url}/api/generate",
@@ -235,92 +513,358 @@ Code :"""
                     "prompt": prompt,
                     "stream": False,
                     "options": {
-                        "temperature": 0.5,
-                        "num_predict": 300
+                        "temperature": 0.1,
+                        "num_predict": 500,
+                        "top_p": 0.95,
+                        "repeat_penalty": 1.1,
+                        "stop": ["```", "Explication:", "Note:", "Voici"]
                     }
                 },
-                timeout=30
+                timeout=60
             )
             
             if response.status_code == 200:
                 result = response.json()
                 raw_code = result.get("response", "").strip()
                 
-                # Nettoyer le code
-                clean_code = self._clean_code(raw_code)
-                return clean_code if clean_code else self._generate_basic_code(instruction, file_type)
-            else:
-                print(f"[FILE_MANAGER] Erreur génération code: {response.status_code}")
-                return self._generate_basic_code(instruction, file_type)
-                
+                if raw_code and len(raw_code) > 30:
+                    clean_code = self._clean_code_universal(raw_code, file_type)
+                    
+                    if self._validate_code_quality(clean_code, instruction, file_type):
+                        print(f"[FILE_MANAGER] ✅ Code généré ({len(clean_code)} chars)")
+                        return clean_code
+                    else:
+                        print("[FILE_MANAGER] ⚠️ Qualité insuffisante, nouvelle tentative...")
+                        return self._retry_generation(instruction, file_type, ollama)
+                else:
+                    return self._retry_generation(instruction, file_type, ollama)
+            
         except Exception as e:
-            print(f"[FILE_MANAGER] Erreur génération: {e}")
-            return self._generate_basic_code(instruction, file_type)
+            print(f"[FILE_MANAGER] ❌ Erreur génération: {e}")
+        
+        return self._generate_minimal_fallback(instruction, file_type)
     
-    def _generate_basic_code(self, instruction: str, file_type: str) -> str:
-        """Génère du code basique sans IA"""
+    def _create_universal_prompt(self, instruction: str, file_type: str) -> str:
+        """Crée un prompt universel pour la génération de code"""
+        language_info = self._get_language_info(file_type)
+        
+        return f"""Tu es un expert programmeur {language_info['name']}.
+
+TÂCHE: Écris un programme {language_info['name']} complet pour: "{instruction}"
+
+EXIGENCES:
+- Code complet et fonctionnel
+- Directement exécutable
+- Structure claire avec fonctions
+- Commentaires utiles
+- Interface utilisateur simple
+
+FORMAT:
+- Commence directement par le code
+- Pas d'explication avant/après
+- {language_info['start_indicator']}
+
+CODE:"""
+    
+    def _get_language_info(self, file_type: str) -> Dict[str, str]:
+        """Informations par langage"""
+        configs = {
+            "py": {
+                "name": "Python",
+                "start_indicator": "Commence par #!/usr/bin/env python3"
+            },
+            "js": {
+                "name": "JavaScript",
+                "start_indicator": "Commence par le code JavaScript"
+            },
+            "html": {
+                "name": "HTML/CSS",
+                "start_indicator": "Commence par <!DOCTYPE html>"
+            }
+        }
+        
+        return configs.get(file_type.lower(), {
+            "name": "générique",
+            "start_indicator": "Commence par le code"
+        })
+    
+    def _retry_generation(self, instruction: str, file_type: str, ollama) -> Optional[str]:
+        """Nouvelle tentative de génération"""
+        retry_prompt = f"""URGENT: Code {file_type} fonctionnel pour: {instruction}
+
+RÈGLES:
+1. SEULEMENT du code exécutable
+2. PAS d'explication
+3. Code COMPLET
+
+CODE:"""
+
+        try:
+            response = requests.post(
+                f"{ollama.base_url}/api/generate",
+                json={
+                    "model": ollama.model,
+                    "prompt": retry_prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.05,
+                        "num_predict": 400,
+                        "stop": ["Explication", "Voici", "Note"]
+                    }
+                },
+                timeout=45
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                raw_code = result.get("response", "").strip()
+                if raw_code:
+                    return self._clean_code_universal(raw_code, file_type)
+                    
+        except Exception as e:
+            print(f"[FILE_MANAGER] ❌ Erreur retry: {e}")
+        
+        return None
+    
+    def _clean_code_universal(self, raw_code: str, file_type: str) -> str:
+        """Nettoyage universel du code"""
+        if not raw_code:
+            return ""
+        
+        # Supprimer les balises markdown
+        code = re.sub(r'^```[a-zA-Z]*\n?', '', raw_code, flags=re.MULTILINE)
+        code = re.sub(r'\n?```\s*$', '', code, flags=re.MULTILINE)
+        
+        # Supprimer les explications
+        lines = code.split('\n')
+        cleaned_lines = []
+        code_started = False
+        
+        for line in lines:
+            line_stripped = line.strip()
+            
+            if self._is_code_start(line_stripped, file_type):
+                code_started = True
+            
+            if not code_started and self._is_explanation_line(line_stripped):
+                continue
+                
+            if code_started and self._is_explanation_line(line_stripped) and not self._is_comment_line(line_stripped, file_type):
+                break
+            
+            if code_started or not line_stripped:
+                cleaned_lines.append(line)
+        
+        result = '\n'.join(cleaned_lines).strip()
+        return result if result else raw_code.strip()
+    
+    def _is_code_start(self, line: str, file_type: str) -> bool:
+        """Détecte le début du code"""
+        starters = {
+            "py": ["#!/", "import ", "from ", "def ", "class ", "if __name__"],
+            "js": ["function ", "const ", "let ", "var ", "class "],
+            "html": ["<!DOCTYPE", "<html", "<head", "<body"]
+        }
+        
+        return any(line.startswith(s) for s in starters.get(file_type.lower(), ["def", "function"]))
+    
+    def _is_explanation_line(self, line: str) -> bool:
+        """Détecte les explications"""
+        explanations = ["voici le code", "ce code", "explication", "utilisation"]
+        return any(exp in line.lower() for exp in explanations)
+    
+    def _is_comment_line(self, line: str, file_type: str) -> bool:
+        """Détecte les commentaires légitimes"""
+        comment_chars = {
+            "py": ["#", '"""', "'''"],
+            "js": ["//", "/*"],
+            "html": ["<!--"]
+        }
+        
+        chars = comment_chars.get(file_type.lower(), ["#", "//"])
+        return any(line.strip().startswith(char) for char in chars)
+    
+    def _validate_code_quality(self, code: str, instruction: str, file_type: str) -> bool:
+        """Valide la qualité du code"""
+        if not code or len(code) < 30:
+            return False
+        
+        if "TODO" in code and len(code) < 100:
+            return False
+        
+        # Vérifications par langage
+        if file_type.lower() == "py":
+            must_have = ["def ", "class ", "for ", "while ", "if ", "print("]
+            if not any(item in code for item in must_have):
+                return False
+                
+        return True
+    
+    def _generate_minimal_fallback(self, instruction: str, file_type: str) -> str:
+        """Fallback minimal"""
         if file_type.lower() == "py":
             return f'''#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 {instruction}
 """
 
 def main():
-    print("Hello World!")
-    # TODO: Implémenter {instruction}
+    print("Programme: {instruction}")
+    print("TODO: Code à implémenter")
 
 if __name__ == "__main__":
-    main()
-'''
-        elif file_type.lower() == "html":
-            return f'''<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Page Web</title>
-</head>
-<body>
-    <h1>Ma Page Web</h1>
-    <p>Contenu généré pour : {instruction}</p>
-</body>
-</html>
-'''
-        elif file_type.lower() == "js":
-            return f'''// {instruction}
-
-function main() {{
-    console.log("Hello World!");
-    // TODO: Implémenter {instruction}
-}}
-
-main();
-'''
+    main()'''
+        
+        return f'// {instruction}\n// TODO: Implémentation nécessaire'
+    
+    def execute_action(self, command_json: Dict[str, Any]) -> str:
+        """Exécute l'action demandée - VERSION COMPLÈTE AVEC EXÉCUTION"""
+        action = command_json.get("action", "")
+        logical_file = command_json.get("fichier", "")
+        target_path = command_json.get("chemin", "")
+        instruction = command_json.get("instruction", "")
+        file_type = command_json.get("type_fichier", "")
+        
+        print(f"[FILE_MANAGER] 🎯 Action: {action} - Fichier: {logical_file}")
+        
+        # === NOUVELLES ACTIONS D'EXÉCUTION ===
+        
+        if action == "lancer":
+            """Exécuter un fichier existant"""
+            if not logical_file:
+                return "❌ Nom de fichier manquant"
+            
+            file_path = self.find_file(logical_file)
+            if not file_path:
+                return f"❌ Fichier '{logical_file}' non trouvé dans {self.base_directory}"
+            
+            return self.executor.execute_file(file_path)
+        
+        elif action == "creer_et_executer":
+            """Créer un fichier puis l'exécuter immédiatement"""
+            # Étape 1: Créer le fichier
+            create_result = self._create_file(logical_file, target_path, instruction, file_type)
+            
+            if "❌" in create_result:
+                return create_result
+            
+            # Étape 2: Exécuter le fichier créé
+            if self.last_path_found and os.path.exists(self.last_path_found):
+                execution_result = self.executor.execute_file(self.last_path_found)
+                return f"{create_result}\n\n🚀 EXÉCUTION:\n{execution_result}"
+            else:
+                return f"{create_result}\n❌ Impossible d'exécuter: fichier non créé"
+        
+        # === ACTIONS DE CRÉATION ===
+        
+        elif action in ["creer", "modifier_code"]:
+            """Créer ou modifier un fichier"""
+            return self._create_file(logical_file, target_path, instruction, file_type)
+        
+        elif action == "generer_pdf":
+            """Générer un rapport PDF"""
+            if not instruction:
+                return "❌ Sujet manquant pour le PDF"
+            return self._generate_pdf_report(instruction, logical_file or "rapport.pdf")
+        
+        # === AUTRES ACTIONS ===
+        
+        elif action == "lister":
+            """Lister les fichiers"""
+            return self._list_files(target_path)
+        
+        elif action == "supprimer":
+            """Supprimer un fichier"""
+            if not logical_file:
+                return "❌ Nom de fichier manquant"
+            
+            file_path = self.find_file(logical_file)
+            if not file_path:
+                return f"❌ Fichier '{logical_file}' non trouvé"
+            
+            try:
+                os.remove(file_path)
+                return f"🗑️ Fichier supprimé: {os.path.basename(file_path)}"
+            except Exception as e:
+                return f"❌ Erreur suppression: {str(e)}"
+        
+        elif action == "deplacer":
+            """Déplacer un fichier"""
+            if not logical_file or not target_path:
+                return "❌ Nom de fichier ou destination manquant"
+            
+            file_path = self.find_file(logical_file)
+            if not file_path:
+                return f"❌ Fichier '{logical_file}' non trouvé"
+            
+            try:
+                destination_dir = os.path.join(self.base_directory, target_path)
+                os.makedirs(destination_dir, exist_ok=True)
+                
+                new_path = os.path.join(destination_dir, os.path.basename(file_path))
+                shutil.move(file_path, new_path)
+                
+                self.last_path_found = new_path
+                return f"📁 Fichier déplacé vers: {target_path}"
+                
+            except Exception as e:
+                return f"❌ Erreur déplacement: {str(e)}"
+        
         else:
-            return f"# {instruction}\n\n# Code généré automatiquement\n# TODO: Implémenter la fonctionnalité demandée"
+            return f"❓ Action inconnue: {action}"
     
-    def _clean_code(self, raw_code: str) -> str:
-        """Nettoie le code généré par l'IA"""
-        code = raw_code.strip()
+    def _create_file(self, logical_file: str, target_path: str, instruction: str, file_type: str) -> str:
+        """Logique de création de fichier centralisée"""
+        if not instruction:
+            return "❌ Instructions manquantes"
         
-        # Supprimer les balises markdown
-        if '```' in code:
-            code = re.sub(r'^```[a-z]*\n?', '', code, flags=re.MULTILINE)
-            code = re.sub(r'\n?```, ', code, flags=re.MULTILINE)
+        # Générer le code
+        print(f"[FILE_MANAGER] 📝 Génération du contenu...")
+        code = self.generate_code(instruction, file_type)
+        if not code:
+            return "❌ Impossible de générer le code"
         
-        # Supprimer les préfixes d'explication
-        prefixes = [
-            "Voici le code :", "Code :", "Résultat :", "Voici :",
-            "Voici un exemple :", "Exemple :"
-        ]
-        for prefix in prefixes:
-            if code.startswith(prefix):
-                code = code[len(prefix):].strip()
+        # Déterminer le chemin de destination
+        if target_path:
+            target_dir = os.path.join(self.base_directory, target_path)
+        else:
+            # Dossiers par défaut selon le type
+            if file_type == "py":
+                target_dir = os.path.join(self.base_directory, "python")
+            elif file_type == "html":
+                target_dir = os.path.join(self.base_directory, "html")
+            elif file_type == "js":
+                target_dir = os.path.join(self.base_directory, "javascript")
+            else:
+                target_dir = self.base_directory
         
-        return code.strip()
+        # Créer le dossier si nécessaire
+        os.makedirs(target_dir, exist_ok=True)
+        
+        # S'assurer que le fichier a la bonne extension
+        if not logical_file.endswith(f".{file_type}"):
+            logical_file = f"{logical_file}.{file_type}"
+        
+        file_path = os.path.join(target_dir, logical_file)
+        
+        try:
+            # Écrire le fichier
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(code)
+            
+            # Mettre à jour les variables de suivi
+            self.last_file_logical = logical_file
+            self.last_path_found = file_path
+            
+            # Afficher un aperçu du code pour confirmation
+            code_preview = code[:150] + "..." if len(code) > 150 else code
+            
+            return f"✅ Fichier créé: {logical_file}\n📁 Emplacement: {file_path}\n\n📝 Aperçu du code:\n{code_preview}"
+            
+        except Exception as e:
+            return f"❌ Erreur lors de la création: {str(e)}"
     
-    def generate_pdf_report(self, topic: str, filename: str) -> str:
+    def _generate_pdf_report(self, topic: str, filename: str) -> str:
         """Génère un rapport PDF sur un sujet"""
         try:
             # Vérifier si fpdf est disponible
@@ -329,21 +873,23 @@ main();
             except ImportError:
                 return "❌ Module PDF non disponible (pip install fpdf2)"
             
-            print(f"📄 Génération PDF sur : {topic}")
+            print(f"[FILE_MANAGER] 📄 Génération PDF sur: {topic}")
             
             # Générer le contenu avec l'IA
             content = self._generate_report_content(topic)
             
-            # Créer le PDF
-            pdf_path = os.path.join(self.base_directory, "documents", filename)
-            os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
+            # Créer le chemin du PDF
+            pdf_dir = os.path.join(self.base_directory, "documents")
+            os.makedirs(pdf_dir, exist_ok=True)
+            pdf_path = os.path.join(pdf_dir, filename)
             
+            # Créer le PDF
             pdf = FPDF()
             pdf.add_page()
             
             # En-tête
             pdf.set_font("Arial", "B", 16)
-            pdf.cell(0, 10, f"Rapport : {topic.title()}", ln=True, align="C")
+            pdf.cell(0, 10, f"Rapport: {topic.title()}", ln=True, align="C")
             pdf.ln(5)
             
             pdf.set_font("Arial", "I", 10)
@@ -354,7 +900,7 @@ main();
             pdf.set_font("Arial", "", 12)
             for line in content.split('\n'):
                 if line.strip():
-                    if line.isupper() or line.startswith('#'):
+                    if line.startswith('#') or line.isupper():
                         # Titre
                         pdf.set_font("Arial", "B", 12)
                         pdf.ln(5)
@@ -373,28 +919,28 @@ main();
             
             pdf.output(pdf_path)
             
-            return f"📄 PDF créé avec succès : {pdf_path}"
+            self.last_path_found = pdf_path
+            
+            return f"📄 PDF créé avec succès: {filename}\n📁 Emplacement: {pdf_path}"
             
         except Exception as e:
-            return f"❌ Erreur génération PDF : {e}"
+            return f"❌ Erreur génération PDF: {str(e)}"
     
     def _generate_report_content(self, topic: str) -> str:
         """Génère le contenu d'un rapport"""
-        prompt = f"""
-Rédige un rapport structuré et informatif sur : {topic}
+        prompt = f"""Rédige un rapport structuré sur: {topic}
 
-Structure du rapport :
+Structure:
 1. INTRODUCTION
-2. POINTS PRINCIPAUX  
-3. APPLICATIONS PRATIQUES
+2. POINTS PRINCIPAUX
+3. APPLICATIONS
 4. AVANTAGES ET LIMITES
 5. CONCLUSION
 
-Sois informatif, clair et structuré. Utilise un ton professionnel.
-"""
+Sois informatif et professionnel."""
         
         try:
-            from .ollama_client import OllamaClient
+            from ..core.ollama_client import OllamaClient
             ollama = OllamaClient()
             
             if ollama.available:
@@ -413,351 +959,135 @@ Sois informatif, clair et structuré. Utilise un ton professionnel.
                     return response.json().get("response", "")
         
         except Exception as e:
-            print(f"Erreur génération contenu: {e}")
+            print(f"[FILE_MANAGER] Erreur génération contenu: {e}")
         
         # Contenu de fallback
         return f"""# RAPPORT SUR {topic.upper()}
 
 ## INTRODUCTION
-Ce rapport présente une analyse de {topic}.
+Ce rapport présente une analyse détaillée de {topic}.
 
 ## POINTS PRINCIPAUX
-- Concept et définition
-- Fonctionnement général
-- Caractéristiques importantes
+- Définition et concepts clés
+- Fonctionnement et caractéristiques
+- Développements récents
 
-## APPLICATIONS PRATIQUES
+## APPLICATIONS
 - Utilisations courantes
 - Exemples concrets
-- Domaines d'application
+- Secteurs d'application
 
 ## AVANTAGES ET LIMITES
-Avantages :
-- Efficacité
-- Polyvalence
-- Innovation
+**Avantages:**
+- Efficacité et performance
+- Facilité d'utilisation
+- Potentiel d'innovation
 
-Limites :
-- Complexité
-- Coûts
-- Défis techniques
+**Limites:**
+- Contraintes techniques
+- Coûts associés
+- Défis d'implémentation
 
 ## CONCLUSION
-{topic} représente un domaine important avec de nombreuses applications et perspectives d'évolution.
-"""
+{topic} représente un domaine en évolution avec de nombreuses opportunités et défis à relever."""
     
-    def execute_action(self, command_json: Dict[str, Any]) -> str:
-        """Exécute l'action demandée"""
-        action = command_json.get("action", "")
-        logical_file = command_json.get("fichier", "")
-        target_path = command_json.get("chemin", "")
-        instruction = command_json.get("instruction", "")
-        file_type = command_json.get("type_fichier", "")
-        
-        print(f"[FILE_MANAGER] Action: {action}, Fichier: {logical_file}")
-        
-        # Générer un PDF
-        if action == "generer_pdf":
-            if not instruction:
-                return "❌ Sujet manquant pour le PDF"
-            return self.generate_pdf_report(instruction, logical_file or "rapport.pdf")
-        
-        # Créer ou modifier du code
-        elif action in ["creer", "modifier_code"]:
-            if not instruction:
-                return "❌ Instructions manquantes"
-            
-            # Générer le code
-            code = self.generate_code(instruction, file_type)
-            if not code:
-                return "❌ Impossible de générer le code"
-            
-            # Définir le chemin
-            if action == "creer":
-                target_dir = os.path.join(self.base_directory, target_path) if target_path else self.base_directory
-                os.makedirs(target_dir, exist_ok=True)
-                file_path = os.path.join(target_dir, logical_file)
-            else:
-                file_path = self.find_file(logical_file)
-                if not file_path:
-                    return f"❌ Fichier '{logical_file}' non trouvé"
-            
-            # Écrire le fichier
-            try:
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(code)
-                
-                self.last_file_logical = logical_file
-                self.last_path_found = file_path
-                
-                action_text = "créé" if action == "creer" else "modifié"
-                return f"📄 Fichier {action_text} : {os.path.basename(file_path)}"
-                
-            except Exception as e:
-                return f"❌ Erreur écriture : {e}"
-        
-        # Lancer un fichier
-        elif action == "lancer":
-            file_path = self.find_file(logical_file)
-            if not file_path:
-                return f"❌ Fichier '{logical_file}' non trouvé"
-            
-            try:
-                if os.name == 'nt':  # Windows
-                    os.startfile(file_path)
-                else:  # Linux/Mac
-                    subprocess.Popen(['xdg-open', file_path])
-                return f"🚀 Ouverture de : {os.path.basename(file_path)}"
-            except Exception as e:
-                return f"❌ Impossible d'ouvrir : {e}"
-        
-        # Déplacer un fichier
-        elif action == "deplacer":
-            file_path = self.find_file(logical_file)
-            if not file_path:
-                return f"❌ Fichier '{logical_file}' non trouvé"
-            
-            if not target_path:
-                return "❌ Destination manquante"
-            
-            try:
-                destination_dir = os.path.join(self.base_directory, target_path)
-                os.makedirs(destination_dir, exist_ok=True)
-                
-                new_path = os.path.join(destination_dir, os.path.basename(file_path))
-                shutil.move(file_path, new_path)
-                
-                self.last_path_found = new_path
-                return f"📁 Fichier déplacé vers : {target_path}"
-                
-            except Exception as e:
-                return f"❌ Erreur déplacement : {e}"
-        
-        # Lister les fichiers
-        elif action == "lister":
-            return self.list_files(target_path)
-        
-        # Supprimer un fichier
-        elif action == "supprimer":
-            file_path = self.find_file(logical_file)
-            if not file_path:
-                return f"❌ Fichier '{logical_file}' non trouvé"
-            
-            try:
-                os.remove(file_path)
-                return f"🗑️ Fichier supprimé : {os.path.basename(file_path)}"
-            except Exception as e:
-                return f"❌ Erreur suppression : {e}"
-        
-        else:
-            return f"❓ Action inconnue : {action}"
-    
-    def list_files(self, subdirectory: str = "") -> str:
+    def _list_files(self, subdirectory: str = "") -> str:
         """Liste les fichiers dans un dossier"""
         target_dir = os.path.join(self.base_directory, subdirectory) if subdirectory else self.base_directory
         
         if not os.path.exists(target_dir):
-            return f"❌ Dossier non trouvé : {subdirectory}"
+            return f"❌ Dossier non trouvé: {subdirectory}"
         
         try:
             items = []
+            file_count = 0
+            dir_count = 0
+            
             for item in os.listdir(target_dir):
                 item_path = os.path.join(target_dir, item)
                 if os.path.isfile(item_path):
-                    items.append(f"📄 {item}")
+                    size = os.path.getsize(item_path)
+                    size_str = f"{size} bytes" if size < 1024 else f"{size//1024} KB"
+                    items.append(f"📄 {item} ({size_str})")
+                    file_count += 1
                 elif os.path.isdir(item_path):
                     items.append(f"📁 {item}/")
+                    dir_count += 1
             
             if not items:
-                return f"📂 Dossier vide : {subdirectory or 'racine'}"
+                return f"📂 Dossier vide: {subdirectory or 'racine'}"
             
-            return f"📂 Contenu de {subdirectory or 'racine'} :\n" + "\n".join(items[:15])
+            header = f"📂 Contenu de {subdirectory or 'racine'} ({file_count} fichiers, {dir_count} dossiers):\n"
+            return header + "\n".join(items[:20])  # Limiter à 20 items
             
         except Exception as e:
-            return f"❌ Erreur listage : {e}"
+            return f"❌ Erreur listage: {str(e)}"
     
     def process_command(self, command: str) -> str:
         """Traite une commande complète"""
-        print(f"[FILE_MANAGER] Commande reçue: {command}")
+        print(f"[FILE_MANAGER] 📥 Commande reçue: {command}")
         
         # Analyser la commande
         command_json = self.analyze_command(command)
         if not command_json:
             return "❌ Impossible de comprendre la commande"
         
-        print(f"[FILE_MANAGER] Analyse: {command_json}")
+        print(f"[FILE_MANAGER] 🧠 Analyse: {command_json}")
         
         # Exécuter l'action
         result = self.execute_action(command_json)
-        print(f"[FILE_MANAGER] Résultat: {result}")
+        print(f"[FILE_MANAGER] ✅ Résultat: {result[:100]}...")
         
         return result
-
-    def scrape_wikipedia_content(self, topic: str) -> str:
-        """Scrape Wikipedia pour obtenir du contenu frais sur un sujet"""
+    
+    def get_stats(self) -> str:
+        """Retourne les statistiques du gestionnaire de fichiers"""
         try:
-            print(f"🌐 Recherche Wikipedia sur : {topic}")
+            total_files = 0
+            total_size = 0
+            file_types = {}
             
-            # URLs Wikipedia à essayer
-            urls_to_try = [
-                f"https://fr.wikipedia.org/wiki/{quote(topic.replace(' ', '_'))}",
-                f"https://fr.wikipedia.org/wiki/{quote(topic)}",
-                f"https://en.wikipedia.org/wiki/{quote(topic.replace(' ', '_'))}"
-            ]
-            
-            scraped_content = ""
-            
-            for url in urls_to_try:
-                try:
-                    print(f"📖 Tentative : {url}")
-                    
-                    headers = {
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-                    }
-                    
-                    response = requests.get(url, timeout=10, headers=headers)
-                    response.raise_for_status()
-                    
-                    soup = BeautifulSoup(response.text, 'html.parser')
-                    
-                    # Extraire le contenu principal de Wikipedia
-                    content_div = soup.find('div', {'id': 'mw-content-text'})
-                    if not content_div:
-                        continue
-                    
-                    # Extraire les paragraphes
-                    paragraphs = content_div.find_all('p')
-                    
-                    for p in paragraphs[:10]:  # Prendre les 10 premiers paragraphes
-                        text = p.get_text().strip()
-                        if len(text) > 50:  # Ignorer les paragraphes trop courts
-                            scraped_content += text + "\n\n"
-                    
-                    if scraped_content:
-                        print(f"✅ Contenu récupéré depuis : {url}")
-                        break
+            for root, dirs, files in os.walk(self.base_directory):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    try:
+                        size = os.path.getsize(file_path)
+                        total_size += size
+                        total_files += 1
                         
-                    time.sleep(1)  # Pause respectueuse entre requêtes
-                    
-                except Exception as e:
-                    print(f"⚠️ Erreur pour {url}: {e}")
-                    continue
+                        ext = Path(file).suffix.lower()
+                        if ext:
+                            file_types[ext] = file_types.get(ext, 0) + 1
+                    except:
+                        continue
             
-            if not scraped_content:
-                print("❌ Aucun contenu Wikipedia trouvé")
-                return f"Informations sur {topic} (contenu de base généré par IA)"
+            # Formater la taille
+            if total_size < 1024:
+                size_str = f"{total_size} bytes"
+            elif total_size < 1024*1024:
+                size_str = f"{total_size//1024} KB"
+            else:
+                size_str = f"{total_size//(1024*1024)} MB"
             
-            return scraped_content.strip()
+            # Top 5 des types de fichiers
+            top_types = sorted(file_types.items(), key=lambda x: x[1], reverse=True)[:5]
+            
+            stats = f"""📊 Statistiques du gestionnaire de fichiers:
+
+📁 Dossier de base: {self.base_directory}
+📄 Total fichiers: {total_files}
+💾 Taille totale: {size_str}
+📂 Dernier fichier créé: {self.last_file_logical or "Aucun"}
+
+📈 Types de fichiers les plus fréquents:"""
+            
+            for ext, count in top_types:
+                stats += f"\n  {ext}: {count} fichiers"
+            
+            return stats
             
         except Exception as e:
-            print(f"❌ Erreur web scraping : {e}")
-            return f"Recherche sur {topic} (erreur d'accès web)"
-
-
-    def generate_pdf_with_wikipedia(self, topic: str, filename: str) -> str:
-        """Génère un PDF avec du contenu Wikipedia réel"""
-        try:
-            print(f"📄 Génération PDF avec Wikipedia : {topic}")
-            
-            # 1. Scraper Wikipedia
-            wikipedia_content = self.scrape_wikipedia_content(topic)
-            
-            # 2. Enrichir avec l'IA pour structurer
-            enriched_content = self._enhance_content_with_ai(wikipedia_content, topic)
-            
-            # 3. Créer le PDF
-            pdf_path = os.path.join(self.base_directory, "documents", filename)
-            os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
-            
-            from fpdf import FPDF
-            
-            pdf = FPDF()
-            pdf.add_page()
-            
-            # En-tête
-            pdf.set_font("Arial", "B", 16)
-            pdf.cell(0, 10, f"Rapport Wikipedia : {topic.title()}", ln=True, align="C")
-            pdf.ln(5)
-            
-            pdf.set_font("Arial", "I", 10)
-            pdf.cell(0, 10, f"Source : Wikipédia - Généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')}", ln=True, align="C")
-            pdf.ln(10)
-            
-            # Contenu
-            pdf.set_font("Arial", "", 12)
-            
-            # Diviser en sections
-            sections = enriched_content.split('\n\n')
-            for section in sections:
-                if section.strip():
-                    # Détecter les titres (lignes courtes en majuscules)
-                    if len(section) < 100 and section.isupper():
-                        pdf.set_font("Arial", "B", 12)
-                        pdf.ln(5)
-                        pdf.multi_cell(0, 8, section.strip())
-                        pdf.ln(2)
-                        pdf.set_font("Arial", "", 12)
-                    else:
-                        pdf.multi_cell(0, 6, section.strip())
-                        pdf.ln(2)
-            
-            # Sources
-            pdf.ln(10)
-            pdf.set_font("Arial", "I", 10)
-            pdf.multi_cell(0, 6, f"Sources : Wikipédia (fr.wikipedia.org), enrichi par IA locale")
-            pdf.cell(0, 10, "Document généré par Clippy IA avec web scraping", ln=True, align="C")
-            
-            pdf.output(pdf_path)
-            
-            return f"📄 PDF Wikipedia créé : {pdf_path}"
-            
-        except Exception as e:
-            return f"❌ Erreur génération PDF Wikipedia : {e}"
-
-
-    def _enhance_content_with_ai(self, raw_content: str, topic: str) -> str:
-        """Utilise l'IA pour structurer le contenu Wikipedia"""
-        prompt = f"""
-    Tu reçois du contenu brut de Wikipedia sur "{topic}".
-
-    Réorganise ce contenu de manière claire et structurée :
-    1. INTRODUCTION (résumé en 2-3 phrases)
-    2. HISTOIRE (chronologie si applicable)
-    3. CARACTÉRISTIQUES PRINCIPALES
-    4. IMPORTANCE/IMPACT
-    5. INFORMATIONS PRATIQUES (si applicable)
-
-    Garde les faits exacts, améliore juste la structure.
-
-    Contenu Wikipedia :
-    {raw_content[:2000]}  # Limiter pour éviter les timeouts
-
-    Contenu structuré :"""
-        
-        try:
-            from .ollama_client import OllamaClient
-            ollama = OllamaClient()
-            
-            if ollama.available:
-                response = requests.post(
-                    f"{ollama.base_url}/api/generate",
-                    json={
-                        "model": ollama.model,
-                        "prompt": prompt,
-                        "stream": False,
-                        "options": {"temperature": 0.3, "num_predict": 800}
-                    },
-                    timeout=30
-                )
-                
-                if response.status_code == 200:
-                    structured_content = response.json().get("response", "")
-                    return structured_content if structured_content else raw_content
-        
-        except Exception as e:
-            print(f"Erreur structuration IA : {e}")
-        
-        return raw_content  # Fallback au contenu brut
+            return f"❌ Erreur calcul statistiques: {str(e)}"
 
 
 # Instance globale
