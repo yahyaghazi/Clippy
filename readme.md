@@ -65,7 +65,7 @@ pip install -r requirements.txt
 ollama serve
 
 # Télécharger un modèle
-ollama pull llama3.2
+ollama pull adrienbrault/nous-hermes2pro:Q3_K_M
 ```
 
 ### 4. Lancer Clippy
