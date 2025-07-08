@@ -3,7 +3,7 @@
 - "Crée un script Python qui calcule la suite de Fibonacci" V
 - "Génère un programme Python pour lire un fichier CSV" X
 - "Fais un script qui trouve les nombres premiers jusqu'à 100" V
-- "Crée un jeu de devinette en Python" V 
+- "Crée un jeu de devinette en Python" 
 ## Pages Web :
 - "Crée une page HTML avec un formulaire de contact"
 - "Génère un site web pour un restaurant avec CSS"
@@ -35,11 +35,11 @@
 ## Commandes de Fichiers :
 - "Liste les fichiers du dossier python" V
 - "Affiche le contenu du dossier documents" V
-- "Montre-moi tous mes fichiers" V
+- "Montre-moi tous mes fichiers"
 - "Lance le fichier fibonacci" V
 ## Déplacement de Fichiers :
 - "Déplace le script python vers le dossier backup" V
-- "Bouge le fichier paris.pdf vers recherches" V
+- "Bouge le fichier paris.pdf vers recherches"
 ---
 # 🎤 Tests Vocaux
 ## Cliquez sur 🎤 puis testez :
@@ -51,7 +51,7 @@
 ---
 # 💬 Conversations Générales
 ## Questions Techniques :
-- "Explique-moi les fonctions Python" V
+- "Explique-moi les fonctions Python"
 - "Comment optimiser un site web ?"
 - "Quelles sont les bonnes pratiques en JavaScript ?"
 - "Comment déboguer du code Python ?"

@@ -510,55 +510,220 @@ Contenu :
         except Exception as e:
             return f"❌ Erreur programmation rappel : {e}"
     
-    def save_to_history(self, command: str, json_result: Dict[str, Any]):
-        """Sauvegarde dans l'historique"""
+    def save_to_history_fixed(self, command: str, json_result: Dict[str, Any]):
+        """Version corrigée de save_to_history avec gestion d'erreurs complète"""
+        print(f"[HISTORY DEBUG] === DEBUT SAUVEGARDE ===")
+        print(f"[HISTORY DEBUG] Commande: {command}")
+        print(f"[HISTORY DEBUG] JSON: {json_result}")
+        print(f"[HISTORY DEBUG] Chemin historique: {self.historique_path}")
+        
         try:
+            # Vérifier et créer le dossier de base
+            base_dir = os.path.dirname(self.historique_path)
+            if not os.path.exists(base_dir):
+                print(f"[HISTORY DEBUG] Création du dossier: {base_dir}")
+                os.makedirs(base_dir, exist_ok=True)
+            
+            # Créer l'entrée avec plus d'informations
             entry = {
-                "date": datetime.now().isoformat(),
+                "id": self._generate_entry_id(),
+                "timestamp": datetime.now().isoformat(),
+                "date_readable": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
                 "command": command,
-                "json": json_result
+                "action": json_result.get("action", "unknown"),
+                "fichier": json_result.get("fichier", ""),
+                "chemin": json_result.get("chemin", ""),
+                "instruction": json_result.get("instruction", ""),
+                "success": not str(json_result).startswith("❌"),
+                "details": json_result
             }
+            print(f"[HISTORY DEBUG] Entrée créée: {entry}")
             
+            # Charger l'historique existant avec gestion d'erreurs
+            history = []
             if os.path.exists(self.historique_path):
-                with open(self.historique_path, 'r', encoding='utf-8') as f:
-                    history = json.load(f)
+                try:
+                    with open(self.historique_path, 'r', encoding='utf-8') as f:
+                        content = f.read().strip()
+                        if content:
+                            history = json.loads(content)
+                            if not isinstance(history, list):
+                                print("[HISTORY WARNING] Le fichier n'est pas une liste, création d'une nouvelle")
+                                history = []
+                        else:
+                            print("[HISTORY DEBUG] Fichier vide, création d'une nouvelle liste")
+                            history = []
+                except json.JSONDecodeError as e:
+                    print(f"[HISTORY ERROR] JSON corrompu: {e}")
+                    # Créer un backup du fichier corrompu
+                    backup_path = f"{self.historique_path}.corrupted.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                    try:
+                        import shutil
+                        shutil.copy2(self.historique_path, backup_path)
+                        print(f"[HISTORY DEBUG] Backup créé: {backup_path}")
+                    except:
+                        pass
+                    history = []
+                except Exception as e:
+                    print(f"[HISTORY ERROR] Erreur lecture: {e}")
+                    history = []
             else:
-                history = []
+                print("[HISTORY DEBUG] Fichier n'existe pas, création d'une nouvelle liste")
             
+            print(f"[HISTORY DEBUG] Historique chargé: {len(history)} entrées")
+            
+            # Ajouter la nouvelle entrée
             history.append(entry)
             
-            # Garder seulement les 100 dernières entrées
+            # Limiter à 100 entrées (garder les plus récentes)
             if len(history) > 100:
                 history = history[-100:]
+                print(f"[HISTORY DEBUG] Historique tronqué à 100 entrées")
             
-            with open(self.historique_path, 'w', encoding='utf-8') as f:
-                json.dump(history, f, indent=2, ensure_ascii=False)
+            # Sauvegarder avec vérification
+            print(f"[HISTORY DEBUG] Sauvegarde de {len(history)} entrées...")
+            
+            # Écriture atomique (écrire dans un fichier temporaire puis renommer)
+            temp_path = f"{self.historique_path}.tmp"
+            try:
+                with open(temp_path, 'w', encoding='utf-8') as f:
+                    json.dump(history, f, indent=2, ensure_ascii=False)
+                
+                # Vérifier que le fichier temporaire est valide
+                with open(temp_path, 'r', encoding='utf-8') as f:
+                    test_load = json.load(f)
+                    if not isinstance(test_load, list):
+                        raise ValueError("Le fichier sauvegardé n'est pas une liste valide")
+                
+                # Remplacer l'ancien fichier
+                if os.path.exists(self.historique_path):
+                    os.remove(self.historique_path)
+                os.rename(temp_path, self.historique_path)
+                
+                print(f"[HISTORY DEBUG] ✅ Sauvegarde réussie ({len(history)} entrées)")
+                
+                # Vérification finale
+                final_size = os.path.getsize(self.historique_path)
+                print(f"[HISTORY DEBUG] Taille fichier final: {final_size} bytes")
+                
+            except Exception as write_error:
+                print(f"[HISTORY ERROR] Erreur écriture: {write_error}")
+                # Nettoyer le fichier temporaire en cas d'erreur
+                if os.path.exists(temp_path):
+                    try:
+                        os.remove(temp_path)
+                    except:
+                        pass
+                raise
                 
         except Exception as e:
-            print(f"Erreur sauvegarde historique : {e}")
+            print(f"[HISTORY ERROR] Erreur générale: {e}")
+            print(f"[HISTORY ERROR] Type: {type(e)}")
+            import traceback
+            print(f"[HISTORY ERROR] Traceback: {traceback.format_exc()}")
+            return False
+        
+        print(f"[HISTORY DEBUG] === FIN SAUVEGARDE ===")
+        return True
     
-    def get_history(self, limit: int = 10) -> str:
-        """Récupère l'historique"""
+    def _generate_entry_id(self) -> str:
+        """Génère un ID unique pour une entrée"""
+        import hashlib
+        timestamp = datetime.now().isoformat()
+        command_hash = hashlib.md5(f"{timestamp}".encode()).hexdigest()[:8]
+        return command_hash
+
+    def get_history_fixed(self, limit: int = 10) -> str:
+        """Version corrigée de get_history avec plus de diagnostics"""
+        print(f"[HISTORY DEBUG] === LECTURE HISTORIQUE ===")
+        print(f"[HISTORY DEBUG] Chemin: {self.historique_path}")
+        print(f"[HISTORY DEBUG] Limite: {limit}")
+        
         try:
+            # Vérifier existence du fichier
             if not os.path.exists(self.historique_path):
-                return "📋 Aucun historique enregistré"
+                print(f"[HISTORY DEBUG] Fichier n'existe pas")
+                return "📋 Aucun historique enregistré (fichier inexistant)"
             
+            # Vérifier taille du fichier
+            file_size = os.path.getsize(self.historique_path)
+            print(f"[HISTORY DEBUG] Taille fichier: {file_size} bytes")
+            
+            if file_size == 0:
+                return "📋 Fichier d'historique vide"
+            
+            # Lire le contenu
             with open(self.historique_path, 'r', encoding='utf-8') as f:
-                history = json.load(f)
+                content = f.read()
+                print(f"[HISTORY DEBUG] Contenu lu: {len(content)} caractères")
+                print(f"[HISTORY DEBUG] Aperçu: {content[:200]}...")
+            
+            # Parser le JSON
+            try:
+                history = json.loads(content)
+                print(f"[HISTORY DEBUG] JSON parsé: {type(history)}")
+            except json.JSONDecodeError as e:
+                print(f"[HISTORY ERROR] JSON invalide: {e}")
+                return f"❌ Fichier d'historique corrompu: {e}"
+            
+            if not isinstance(history, list):
+                print(f"[HISTORY ERROR] Pas une liste: {type(history)}")
+                return "❌ Format d'historique invalide"
+            
+            print(f"[HISTORY DEBUG] Nombre d'entrées: {len(history)}")
             
             if not history:
                 return "📋 Historique vide"
             
-            result = "📋 Historique des commandes :\n\n"
-            for entry in history[-limit:]:
-                date = entry.get("date", "")
-                cmd = entry.get("command", "")
-                result += f"🕓 {date[:19]} → {cmd}\n"
+            # Prendre les dernières entrées
+            recent_entries = history[-limit:] if len(history) > limit else history
+            print(f"[HISTORY DEBUG] Entrées récentes: {len(recent_entries)}")
             
+            # Formater pour l'affichage
+            result = f"📋 Historique des commandes ({len(recent_entries)}/{len(history)}):\n\n"
+            
+            for i, entry in enumerate(reversed(recent_entries)):  # Plus récent en premier
+                print(f"[HISTORY DEBUG] Traitement entrée {i}: {entry}")
+                
+                date = entry.get("date_readable", entry.get("timestamp", "Date inconnue"))
+                if len(date) > 19:
+                    date = date[:19]
+                
+                command = entry.get("command", "Commande inconnue")
+                if len(command) > 60:
+                    command = command[:57] + "..."
+                
+                action = entry.get("action", "unknown")
+                fichier = entry.get("fichier", "")
+                
+                # Icône selon l'action
+                icons = {
+                    "creer": "📝",
+                    "lancer": "🚀", 
+                    "modifier_code": "✏️",
+                    "webscrap_pdf": "🌐",
+                    "generer_document": "📄",
+                    "liste_fichiers": "📁",
+                    "historique": "📋",
+                    "traduire": "🔤",
+                    "resumer_document": "📖"
+                }
+                icon = icons.get(action, "🔧")
+                
+                result += f"{icon} {date}\n"
+                result += f"   → {command}\n"
+                if fichier:
+                    result += f"   📄 {fichier}\n"
+                result += "\n"
+            
+            print(f"[HISTORY DEBUG] Résultat formaté: {len(result)} caractères")
             return result
             
         except Exception as e:
-            return f"❌ Erreur lecture historique : {e}"
+            print(f"[HISTORY ERROR] Erreur lecture: {e}")
+            import traceback
+            print(f"[HISTORY ERROR] Traceback: {traceback.format_exc()}")
+            return f"❌ Erreur lecture historique: {e}"
     
     def list_files(self, subdirectory: str = "") -> str:
         """Liste les fichiers"""
@@ -724,6 +889,99 @@ Contenu :
         print(f"[ENHANCED_FILE_MANAGER] Résultat: {result}")
         
         return result
+    
+    def diagnostic_historique_complete(self):
+        """Diagnostic complet du système d'historique"""
+        print("\n" + "="*60)
+        print("🔍 DIAGNOSTIC COMPLET DE L'HISTORIQUE")
+        print("="*60)
+        
+        # 1. Informations de base
+        print("📁 Informations de base:")
+        print(f"   Dossier base: {self.base_directory}")
+        print(f"   Chemin historique: {self.historique_path}")
+        print(f"   Dossier existe: {os.path.exists(self.base_directory)}")
+        print(f"   Fichier existe: {os.path.exists(self.historique_path)}")
+        
+        # 2. Permissions
+        print("\n🔐 Permissions:")
+        try:
+            print(f"   Lecture dossier: {os.access(self.base_directory, os.R_OK)}")
+            print(f"   Écriture dossier: {os.access(self.base_directory, os.W_OK)}")
+            if os.path.exists(self.historique_path):
+                print(f"   Lecture fichier: {os.access(self.historique_path, os.R_OK)}")
+                print(f"   Écriture fichier: {os.access(self.historique_path, os.W_OK)}")
+        except Exception as e:
+            print(f"   ❌ Erreur vérification permissions: {e}")
+        
+        # 3. Contenu du fichier
+        if os.path.exists(self.historique_path):
+            print("\n📄 Analyse du fichier:")
+            try:
+                file_size = os.path.getsize(self.historique_path)
+                print(f"   Taille: {file_size} bytes")
+                
+                with open(self.historique_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    print(f"   Contenu longueur: {len(content)} caractères")
+                    print(f"   Aperçu: {content[:100]}...")
+                    
+                    if content.strip():
+                        try:
+                            data = json.loads(content)
+                            print(f"   ✅ JSON valide: {type(data)}")
+                            if isinstance(data, list):
+                                print(f"   Nombre d'entrées: {len(data)}")
+                                if data:
+                                    print(f"   Première entrée: {data[0]}")
+                                    print(f"   Dernière entrée: {data[-1]}")
+                            else:
+                                print(f"   ⚠️ Pas une liste: {type(data)}")
+                        except json.JSONDecodeError as e:
+                            print(f"   ❌ JSON invalide: {e}")
+                    else:
+                        print("   ⚠️ Fichier vide")
+                        
+            except Exception as e:
+                print(f"   ❌ Erreur lecture: {e}")
+        
+        # 4. Test de sauvegarde
+        print("\n🧪 Test de sauvegarde:")
+        try:
+            test_command = "test diagnostic"
+            test_json = {"action": "test", "fichier": "diagnostic.txt", "instruction": "test"}
+            
+            print("   Tentative de sauvegarde...")
+            result = self.save_to_history(test_command, test_json)
+            print(f"   Résultat: {'✅ Succès' if result else '❌ Échec'}")
+            
+            # Vérifier que ça a marché
+            if os.path.exists(self.historique_path):
+                with open(self.historique_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    if test_command in content:
+                        print("   ✅ Test retrouvé dans le fichier")
+                    else:
+                        print("   ❌ Test non retrouvé dans le fichier")
+            
+        except Exception as e:
+            print(f"   ❌ Erreur test: {e}")
+        
+        # 5. Test de lecture
+        print("\n📖 Test de lecture:")
+        try:
+            result = self.get_history(3)
+            print(f"   Longueur résultat: {len(result)} caractères")
+            print(f"   Aperçu: {result[:200]}...")
+            if "diagnostic" in result:
+                print("   ✅ Test retrouvé dans l'historique")
+            else:
+                print("   ⚠️ Test non retrouvé dans l'historique")
+        except Exception as e:
+            print(f"   ❌ Erreur lecture: {e}")
+        
+        print("="*60)
+        print("🏁 Fin du diagnostic")
 
 
 # Instance globale

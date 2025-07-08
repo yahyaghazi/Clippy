@@ -8,10 +8,8 @@ import shutil
 import re
 import subprocess
 import sys
-import threading
-import time
 from pathlib import Path
-from typing import Dict, Optional, Any, List
+from typing import Dict, Optional, Any
 import requests
 from datetime import datetime
 
@@ -330,7 +328,7 @@ class FileManager:
     def _parse_creation_command(self, command: str) -> Dict[str, Any]:
         """Parse une commande de création"""
         command_lower = command.lower()
-        
+
         # Déterminer le type de fichier
         if "python" in command_lower or ".py" in command_lower:
             file_type = "py"
@@ -352,12 +350,40 @@ class FileManager:
             file_type = "py"  # Par défaut Python
             default_name = "script.py"
             default_path = "python"
-        
-        # Extraire un nom de fichier potentiel
-        filename = self._extract_filename_from_command(command, file_type)
-        if not filename:
-            filename = default_name
-        
+
+        # ==== NOUVEAU : Demander un nom de fichier à l'IA ====
+        ai_filename = None
+        try:
+            from ..core.ollama_client import OllamaClient
+            ollama = OllamaClient()
+            if ollama.available:
+                prompt = (
+                    f"Propose un nom de fichier court et pertinent (sans explication, juste le nom) "
+                    f"pour ce projet {file_type} : \"{command}\". "
+                    f"Le nom doit finir par .{file_type}."
+                )
+                response = requests.post(
+                    f"{ollama.base_url}/api/generate",
+                    json={
+                        "model": ollama.model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "options": {"temperature": 0.1, "num_predict": 20}
+                    },
+                    timeout=10
+                )
+                if response.status_code == 200:
+                    text = response.json().get("response", "").strip()
+                    # Nettoyer le nom (enlever code block, espaces, etc)
+                    ai_filename = re.sub(r"[`\s]", "", text)
+                    if not ai_filename.endswith(f".{file_type}"):
+                        ai_filename += f".{file_type}"
+        except Exception as e:
+            print(f"[FILE_MANAGER] Erreur IA nom fichier: {e}")
+
+        # Extraire un nom de fichier potentiel (fallback logique)
+        filename = ai_filename or self._extract_filename_from_command(command, file_type) or default_name
+
         return {
             "action": "generer_pdf" if file_type == "pdf" else "creer",
             "fichier": filename,

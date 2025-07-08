@@ -10,7 +10,7 @@ from pathlib import Path
 # Ajouter le dossier src au PYTHONPATH
 src_path = Path(__file__).parent / "src"
 sys.path.insert(0, str(src_path))
-
+from src.core.enhanced_file_manager import EnhancedFileManager
 from src.ui.main_window import MainWindow
 from src.config.settings import settings
 from src.utils.logger import setup_logger
@@ -187,6 +187,31 @@ def main():
         logger.info("Clippy IA arrêté")
         print("👋 Au revoir ! Clippy s'arrête.")
 
+def patch_enhanced_file_manager():
+    """Patch rapide pour tester le fix"""
+    from src.core.enhanced_file_manager import enhanced_file_manager
+    
+    # Remplacer les méthodes
+    enhanced_file_manager.save_to_history = EnhancedFileManager.save_to_history_fixed.__get__(enhanced_file_manager)
+    enhanced_file_manager.get_history = EnhancedFileManager.get_history_fixed.__get__(enhanced_file_manager)
+    enhanced_file_manager._generate_entry_id = EnhancedFileManager._generate_entry_id.__get__(enhanced_file_manager)
+    enhanced_file_manager.diagnostic_historique_complete = EnhancedFileManager.diagnostic_historique_complete.__get__(enhanced_file_manager)
+    
+    print("✅ Enhanced File Manager patché avec le fix d'historique")
+    
+    # Test immédiat
+    enhanced_file_manager.diagnostic_historique_complete()
+    
+    return enhanced_file_manager
 
 if __name__ == "__main__":
-    main()
+    # Pour tester le patch
+    patched_manager = patch_enhanced_file_manager()
+    
+    # Test d'une commande
+    result = patched_manager.process_command("crée un fichier test pour historique")
+    print(f"\nRésultat test: {result}")
+    
+    # Vérifier l'historique
+    print("\nHistorique après test:")
+    print(patched_manager.get_history())
