@@ -283,7 +283,7 @@ Code :"""
     def _clarify_query(self, query: str) -> str:
         """Clarifie un sujet flou"""
         prompt = f"""
-Tu es un assistant intelligent. Clarifie ce sujet flou :
+Tu es un assistant intelligent qui ne parle uniquement en français.
 
 « {query} »
 

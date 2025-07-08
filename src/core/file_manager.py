@@ -793,6 +793,15 @@ if __name__ == "__main__":
                 return "❌ Sujet manquant pour le PDF"
             return self._generate_pdf_report(instruction, logical_file or "rapport.pdf")
         
+        elif action in ["resumer", "resumer_pdf"]:
+            """Résumer un document PDF"""
+            if not logical_file:
+                return "❌ Nom de fichier PDF manquant"
+            file_path = self.find_file(logical_file)
+            if not file_path or not file_path.lower().endswith(".pdf"):
+                return f"❌ Fichier PDF '{logical_file}' non trouvé"
+            return self._summarize_pdf(file_path)
+        
         # === AUTRES ACTIONS ===
         
         elif action == "lister":
@@ -954,17 +963,11 @@ if __name__ == "__main__":
     
     def _generate_report_content(self, topic: str) -> str:
         """Génère le contenu d'un rapport"""
-        prompt = f"""Rédige un rapport structuré sur: {topic}
+        prompt = f"""Rédige un rapport informatif et professionnel sur : {topic}
 
-Structure:
-1. INTRODUCTION
-2. POINTS PRINCIPAUX
-3. APPLICATIONS
-4. AVANTAGES ET LIMITES
-5. CONCLUSION
+Tu es libre de structurer le texte comme tu le souhaites, sans contrainte de plan ou de sections imposées.
+Le rapport doit être clair, cohérent et pertinent pour le sujet."""
 
-Sois informatif et professionnel."""
-        
         try:
             from ..core.ollama_client import OllamaClient
             ollama = OllamaClient()
@@ -988,34 +991,7 @@ Sois informatif et professionnel."""
             print(f"[FILE_MANAGER] Erreur génération contenu: {e}")
         
         # Contenu de fallback
-        return f"""# RAPPORT SUR {topic.upper()}
-
-## INTRODUCTION
-Ce rapport présente une analyse détaillée de {topic}.
-
-## POINTS PRINCIPAUX
-- Définition et concepts clés
-- Fonctionnement et caractéristiques
-- Développements récents
-
-## APPLICATIONS
-- Utilisations courantes
-- Exemples concrets
-- Secteurs d'application
-
-## AVANTAGES ET LIMITES
-**Avantages:**
-- Efficacité et performance
-- Facilité d'utilisation
-- Potentiel d'innovation
-
-**Limites:**
-- Contraintes techniques
-- Coûts associés
-- Défis d'implémentation
-
-## CONCLUSION
-{topic} représente un domaine en évolution avec de nombreuses opportunités et défis à relever."""
+        return f"Rapport sur {topic}\n\n(Texte généré automatiquement. Sujet : {topic})"
     
     def _list_files(self, subdirectory: str = "") -> str:
         """Liste les fichiers dans un dossier"""
