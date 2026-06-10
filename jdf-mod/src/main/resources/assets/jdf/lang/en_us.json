@@ -1,0 +1,9 @@
+{
+  "itemGroup.jdf": "Jurassic DNA Fusion",
+  "item.jdf.syringe": "Syringe",
+  "item.jdf.amber": "Amber",
+  "block.jdf.fossil_block": "Fossil Block",
+  "tooltip.jdf.dna_source": "DNA: %s",
+  "tooltip.jdf.syringe_inject": "Hold right-click to inject yourself",
+  "tooltip.jdf.syringe_empty": "Empty — right-click a creature to extract its DNA"
+}
